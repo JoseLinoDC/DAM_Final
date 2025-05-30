@@ -1,6 +1,7 @@
 sap.ui.define([
-    "sap/ui/core/mvc/Controller"
-], function (Controller) {
+    "sap/ui/core/mvc/Controller",
+    "sap/m/MessageToast"
+], function (Controller, MessageToast) {
     "use strict";
 
     return Controller.extend("com.invertions.sapfiorimodinv.controller.App", {
@@ -8,7 +9,7 @@ sap.ui.define([
         onInit: function () {
             // Redirige automáticamente a la vista principal al iniciar
             const oRouter = this.getOwnerComponent().getRouter();
-            oRouter.navTo("RouteMain");
+            oRouter.navTo("Login");
         },
 
 
@@ -20,6 +21,12 @@ sap.ui.define([
         onItemSelect: function (oEvent) {
             const sKey = oEvent.getParameter("item").getKey();
             const oRouter = this.getOwnerComponent().getRouter();
+            const isLoggedIn = this.getOwnerComponent().getModel("appView").getProperty("/isLoggedIn");
+
+            if (!isLoggedIn) {
+                MessageToast.show("Debe iniciar sesión para acceder");
+                return;
+            }
 
             switch (sKey) {
                 case "roles":

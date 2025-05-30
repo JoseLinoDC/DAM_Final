@@ -130,11 +130,6 @@
                     "pattern": "investments",
                     "name": "RouteInvestments",
                     "target": "TargetInvestments"
-                },
-                {
-                    "pattern": "invertions",
-                    "name": "RouteInvertionsCompanies",
-                    "target": "InvertionsCompanies"
                 }
             ],
             "targets": {
@@ -185,11 +180,11 @@
                     "viewType": "XML",
                     "viewPath": "com.invertions.sapfiorimodinv.view"
                 },
-                "InvertionsCompanies": {
-                    "viewName": "investments/Investments",
-                    "viewLevel": 1,
+                "TargetInvestments": {
+                    "viewName": "Investments",
                     "viewId": "investmentsPage",
-                    "viewType": "XML"
+                    "viewType": "XML",
+                    "viewPath": "com.invertions.sapfiorimodinv.view.investments"
                 }
             }
         },
