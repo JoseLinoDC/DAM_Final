@@ -1601,9 +1601,37 @@ async function SimulateMACrossover(body) {
 -----------------------------------------------------------------------------------------------------------*/
 
 
+function formatDateToYYYYMMDD(date) {
+  if (!date) return null;
+  const d = new Date(date);
+  return d.toISOString().split('T')[0]; // yyyy-mm-dd
+}
+
+function recursivelyFormatDates(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(recursivelyFormatDates);
+  } else if (obj && typeof obj === 'object') {
+    const formatted = {};
+    for (const key in obj) {
+      const value = obj[key];
+      if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
+        formatted[key] = formatDateToYYYYMMDD(value);
+      } else {
+        formatted[key] = recursivelyFormatDates(value);
+      }
+    }
+    return formatted;
+  } else {
+    return obj;
+  }
+}
+
+
 async function getAllSimulations() {
   try {
-    return await SimulationModel.find({ "CHART_DATA.0": { $exists: true } }).lean();
+    let simulation = await SimulationModel.find().lean(); 
+    const formattedSimulations = simulation.map(recursivelyFormatDates);
+    return formattedSimulations;
   } catch (err) {
     throw boom.internal('Error al obtener las simulaciones', err);
   }

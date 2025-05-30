@@ -21,7 +21,7 @@ sap.ui.define(
   ) {
     "use strict";
 
-    const API_INVERSIONES_URL_BASE = "http://localhost:3020/api/inv/pruebas/GetAllSimulation";
+    const API_INVERSIONES_URL_BASE = "http://localhost:3333/api/security/inversions/getAllSimulations";
 
     return Controller.extend(
       "com.invertions.sapfiorimodinv.controller.investments.Investments",
@@ -711,28 +711,15 @@ sap.ui.define(
           if (!Array.isArray(aData)) return [];
 
           return aData.map((oItem) => {
-            // Encuentra la señal correspondiente para esta fecha, si existe
-            const signal = aSignals.find((s) => s.DATE === oItem.DATE) || {};
+            // Encuentra la señal correspondiente para esta fecha
+            const signal = aSignals.find((s) => {
+              const signalDate = this._parseDate(s.DATE);
+              const itemDate = this._parseDate(oItem.DATE);
+              return signalDate && itemDate && signalDate.getTime() === itemDate.getTime();
+            }) || {};
 
-            let dateObject = null;
-            if (typeof oItem.DATE === "string" && oItem.DATE.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              dateObject = new Date(oItem.DATE);
-            } else if (oItem.DATE instanceof Date) {
-              dateObject = oItem.DATE;
-            }
-
-            // Extrae valores de los indicadores
-            let indicators = {};
-            if (Array.isArray(oItem.INDICATORS)) {
-              oItem.INDICATORS.forEach((indicator) => {
-                indicators[indicator.INDICATOR] = parseFloat(indicator.VALUE) || 0;
-              });
-            }
-
-            // Construye el texto de los indicadores
-            const indicatorsText = Object.entries(indicators)
-              .map(([key, value]) => `${key}: ${value.toFixed(2)}`)
-              .join(", ") || "N/A";
+            const dateObject = this._parseDate(oItem.DATE);
+            const indicators = this._extractIndicators(oItem.INDICATORS);
 
             return {
               DATE_GRAPH: dateObject,
@@ -742,20 +729,16 @@ sap.ui.define(
               LOW: parseFloat(oItem.LOW) || 0,
               CLOSE: parseFloat(oItem.CLOSE) || 0,
               VOLUME: parseFloat(oItem.VOLUME) || 0,
-              // Propiedades para los indicadores
-              ...indicators,
-              // Señales
+              ...indicators.values,
               BUY_SIGNAL: signal.TYPE === "buy" ? parseFloat(oItem.CLOSE) : null,
               SELL_SIGNAL: signal.TYPE === "sell" ? parseFloat(oItem.CLOSE) : null,
-              // Propiedades para la tabla
-              INDICATORS_TEXT: indicatorsText,
+              INDICATORS_TEXT: indicators.text,
               SIGNALS: signal.TYPE ? "ACCIÓN " + signal.TYPE.toUpperCase() : "SIN ACCIÓN",
               RULES: signal.REASONING ? "RAZÓN " + signal.REASONING : "SIN RAZÓN",
               SHARES: signal.SHARES || 0,
-              // Propiedades para el fragmento
               type: signal.TYPE || "",
               price: signal.PRICE || 0,
-              reasoning: signal.REASONING || "",
+              reasoning: signal.REASONING || ""
             };
           });
         },
@@ -1020,7 +1003,46 @@ sap.ui.define(
           }
         },
 
+        _parseDate: function (dateValue) {
+          // Si ya es un objeto Date, devolverlo directamente
+          if (dateValue instanceof Date) {
+            return dateValue;
+          }
 
+          // Si es string ISO con timezone (ej: "2024-01-02T00:00:00.000Z")
+          if (typeof dateValue === 'string' && dateValue.includes('T')) {
+            return new Date(dateValue);
+          }
+
+          // Si es string con solo fecha (ej: "2024-01-02")
+          if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return new Date(dateValue);
+          }
+
+          // Si no coincide con ningún formato conocido
+          console.warn('Formato de fecha no reconocido:', dateValue);
+          return null;
+        },
+
+        _extractIndicators: function (aIndicators) {
+          const result = {
+            values: {},
+            textParts: []
+          };
+
+          if (Array.isArray(aIndicators)) {
+            aIndicators.forEach(indicator => {
+              const value = parseFloat(indicator.VALUE) || 0;
+              // Mapea nombres de indicadores para consistencia
+              const indicatorKey = indicator.INDICATOR.toLowerCase();
+              result.values[indicatorKey.toUpperCase()] = value; // Ej: 'sma' -> 'SMA'
+              result.textParts.push(`${indicatorKey.toUpperCase()}: ${value.toFixed(2)}`);
+            });
+          }
+
+          result.text = result.textParts.join(", ") || "N/A";
+          return result;
+        }
 
       }
     );
