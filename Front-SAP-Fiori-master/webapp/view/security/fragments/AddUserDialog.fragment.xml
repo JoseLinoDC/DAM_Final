@@ -69,6 +69,8 @@
                 id="inputUserPhoneNumber"
                 placeholder="Número telefónico"
                 value="{newUser>/PHONENUMBER}"
+                maxLength="12"
+                liveChange=".onPhoneNumberLiveChange"
             />
 
             <!-- Campo existente: Correo Electrónico -->

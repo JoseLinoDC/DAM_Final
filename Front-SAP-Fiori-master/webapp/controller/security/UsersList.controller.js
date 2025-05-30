@@ -207,6 +207,11 @@ sap.ui.define([
                 return;
             }
 
+            if (this._oEditUserDialog) {
+                this._oEditUserDialog.destroy();
+                this._oEditUserDialog = null;
+            }
+
             if (!this._oEditUserDialog) {
                 Fragment.load({
                     id: oView.getId(),
@@ -238,24 +243,24 @@ sap.ui.define([
                 const oUserData = oEditModel.getData();
 
                 // 2. Validación detallada de campos obligatorios
-                const requiredFields = [
-                    "USERID", "PASSWORD", "ALIAS", "FIRSTNAME", "LASTNAME", "EMPLOYEEID", "EXTENSION",
-                    "USERNAME", "EMAIL", "PHONENUMBER", "BIRTHDAYDATE", "AVATAR", "COMPANYID",
-                    "DEPARTMENT_ID", "FUNCTION", "STREET", "POSTALCODE", "CITY", "REGION", "STATE", "COUNTRY"
-                ];
+                // const requiredFields = [
+                //     "USERID", "PASSWORD", "ALIAS", "FIRSTNAME", "LASTNAME", "EMPLOYEEID", "EXTENSION",
+                //     "USERNAME", "EMAIL", "PHONENUMBER", "BIRTHDAYDATE", "AVATAR", "COMPANYID",
+                //     "DEPARTMENT_ID", "FUNCTION", "STREET", "POSTALCODE", "CITY", "REGION", "STATE", "COUNTRY"
+                // ];
 
-                for (const field of requiredFields) {
-                    if (
-                        oUserData[field] === undefined ||
-                        oUserData[field] === null ||
-                        oUserData[field] === "" ||
-                        (field === "POSTALCODE" && (oUserData[field] === "" || isNaN(oUserData[field])))
-                    ) {
-                        MessageBox.warning(`El campo obligatorio "${field}" está vacío o es inválido.`);
-                        oView.setBusy(false);
-                        return;
-                    }
-                }
+                // for (const field of requiredFields) {
+                //     if (
+                //         oUserData[field] === undefined ||
+                //         oUserData[field] === null ||
+                //         oUserData[field] === "" ||
+                //         (field === "POSTALCODE" && (oUserData[field] === "" || isNaN(oUserData[field])))
+                //     ) {
+                //         MessageBox.warning(`El campo obligatorio "${field}" está vacío o es inválido.`);
+                //         oView.setBusy(false);
+                //         return;
+                //     }
+                // }
 
                 // 3. Validar al menos un rol
                 var aSelectedRoles = oEditModel.getProperty("/selectedRoles") || [];
@@ -1166,6 +1171,35 @@ sap.ui.define([
                 MessageToast.show("Error al cargar departamentos");
             }
         },
+
+
+        onPhoneNumberLiveChange: function (oEvent) {
+            let sValue = oEvent.getParameter("value") || "";
+            // Solo números
+            sValue = sValue.replace(/\D/g, "");
+            // Máximo 10 dígitos
+            sValue = sValue.substring(0, 10);
+
+            // Formato 311-247-9021
+            let sFormatted = sValue;
+            if (sValue.length > 6) {
+                sFormatted = sValue.replace(/(\d{3})(\d{3})(\d{1,4})/, "$1-$2-$3");
+            } else if (sValue.length > 3) {
+                sFormatted = sValue.replace(/(\d{3})(\d{1,3})/, "$1-$2");
+            }
+
+            // Detectar modelo (editUser o newUser)
+            const oInput = oEvent.getSource();
+            const oBinding = oInput.getBinding("value");
+            const sModelName = oBinding && oBinding.getModel().sName; // "editUser" o "newUser"
+            const oModel = this.getView().getModel(sModelName);
+
+            if (oModel) {
+                oModel.setProperty("/PHONENUMBER", sFormatted);
+            }
+            oInput.setValue(sFormatted);
+        },
+
 
     });
 
