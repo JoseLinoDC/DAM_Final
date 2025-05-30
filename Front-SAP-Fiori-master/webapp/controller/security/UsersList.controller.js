@@ -312,9 +312,7 @@ sap.ui.define([
 
                 if (res.ok) {
                     MessageToast.show("Usuario actualizado exitosamente");
-                    if (this._oEditUserDialog) {
-                        this._oEditUserDialog.close();
-                    }
+                    this.onEditCancelUser();
                     this.loadUsers();
                 } else {
                     MessageBox.error("Error: " + (result.message || "No se pudo actualizar el usuario"));
@@ -359,6 +357,8 @@ sap.ui.define([
         onEditCancelUser: function () {
             if (this._oEditUserDialog) {
                 this._oEditUserDialog.close();
+                this._oEditUserDialog.destroy();
+                this._oEditUserDialog = null;
             }
         },
 
@@ -709,7 +709,7 @@ sap.ui.define([
             var oView = this.getView();
             var oRolesModel = new JSONModel();
 
-            fetch("env.json")
+            return fetch("env.json")
                 .then(res => res.json())
                 .then(env => fetch(env.API_ROLES_URL_BASE + "getall"))
                 .then(res => res.json())
@@ -1071,7 +1071,18 @@ sap.ui.define([
                 await this.loadRoles();
 
                 // 8. Mostrar roles seleccionados
-                this._updateSelectedRolesView(oUserData.ROLES || [], true);
+
+                const aAllRoles = oView.getModel("rolesModel").getProperty("/roles") || [];
+                const aUserRoles = (oUserData.ROLES || []).map(userRole => {
+                    const found = aAllRoles.find(r => r.ROLEID === userRole.ROLEID || r.ROLEID === userRole);
+                    return {
+                        ROLEID: userRole.ROLEID || userRole,
+                        ROLENAME: found ? found.ROLENAME : (userRole.ROLENAME || userRole.ROLEID || userRole)
+                    };
+                });
+                oEditModel.setProperty("/selectedRoles", aUserRoles);
+
+                this._updateSelectedRolesView(aUserRoles, true);
 
                 // 9. Forzar la selección visual en los combobox
                 if (oUserData.COMPANYID) {
