@@ -1,0 +1,35 @@
+<mvc:View controllerName="com.invertions.sapfiorimodinv.controller.security.Roles"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:layout="sap.ui.layout"
+  xmlns:core="sap.ui.core">
+
+  <VBox class="sapUiContentPadding">
+
+    <!-- 🔹 Toolbar como cabecera -->
+    <Toolbar design="Auto">
+      <Title text="Gestión de Roles" level="H1" />
+    </Toolbar>
+
+    <layout:Splitter id="rolesSplitter" orientation="Horizontal" height="100%" width="100%" tooltip="Arrastra para ajustar el tamaño entre los paneles">
+
+      <!--  Panel izquierdo (RolesMaster) -->
+      <VBox>
+        <layoutData>
+          <layout:SplitterLayoutData  size="{= ${uiState>/isDetailVisible} ? '70%' : '100%'}" minSize="30%" resizable="true" />
+        </layoutData>
+        <mvc:XMLView viewName="com.invertions.sapfiorimodinv.view.security.RolesMaster" />
+      </VBox>
+
+      <!--  Panel derecho (RolesDetail) -->
+      <VBox visible="{uiState>/isDetailVisible}">
+        <layoutData>
+          <layout:SplitterLayoutData size="30%" minSize="25%" resizable="true" />
+        </layoutData>
+        <mvc:XMLView viewName="com.invertions.sapfiorimodinv.view.security.RolesDetail" />
+      </VBox>
+
+
+    </layout:Splitter>
+  </VBox>
+</mvc:View>

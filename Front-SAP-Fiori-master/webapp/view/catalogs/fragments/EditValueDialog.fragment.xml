@@ -1,0 +1,69 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:form="sap.ui.layout.form"
+>
+    <Dialog
+        id="editDialogValue"
+        title="Editar Value"
+        contentWidth="600px"
+    >
+        <content>
+            <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                <Label text="LABELID" required="true" />
+                <Text text="{values>/selectedValue/LABELID}" />
+
+                <Label text="VALUEID" required="true" />
+                <Input value="{newValueModel>/VALUEID}" id="InputValueIdEdit" editable="false" />
+
+                <Label text="VALUE" required="true" />
+                <Input value="{newValueModel>/VALUE}" />
+
+                <Label text="Label ID" />
+                <ComboBox
+                    items="{ path: 'labels>/labels', sorter: { path: 'LABELID' } }"
+                    selectedKey="{newValueModel>/LABELID}"
+                    selectionChange=".onLabelIdChange"
+                >
+                    <core:Item key="{labels>LABELID}" text="{labels>LABELID}" />
+                </ComboBox>
+
+                <Label text="Values ID que están en LABELID" />
+                <ComboBox
+                    id="valueIdComboBox2"
+                    items="{ path: 'values>/FilteredValues', sorter: { path: 'VALUEID' } }"
+                    selectedKey="{newValueModel>/ValuePaid2}"
+                >
+                    <core:Item key="{values>VALUEID}" text="{values>VALUEID}" />
+                </ComboBox>
+
+                <Label text="ALIAS" />
+                <Input value="{newValueModel>/ALIAS}" />
+
+                <Label text="IMAGE" />
+                <Input value="{newValueModel>/IMAGE}" />
+
+                <Label text="DESCRIPTION" />
+                <TextArea value="{newValueModel>/DESCRIPTION}" rows="3" />
+
+                <Label text="Estado Inicial" />
+                <Switch
+                    state="{newValueModel>/DETAIL_ROW/ACTIVED}"
+                    customTextOn="ACTIVO"
+                    customTextOff="INACTIVO"
+                    change=".onSwitchChange"
+                />
+
+                <!-- Puedes agregar más campos aquí si los necesitas -->
+            </form:SimpleForm>
+        </content>
+
+        <beginButton>
+            <Button text="Guardar" type="Emphasized" press="onSaveValues" />
+        </beginButton>
+
+        <endButton>
+            <Button text="Cancelar" press="onCancelDialog" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

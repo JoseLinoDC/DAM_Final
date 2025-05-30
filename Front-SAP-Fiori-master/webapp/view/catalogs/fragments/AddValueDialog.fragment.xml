@@ -1,0 +1,41 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:form="sap.ui.layout.form">
+    <Dialog id="addValueDialog" title="Agregar Value" contentWidth="600px">
+        <content>
+            <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                <Label text="LABELID" required="true"/>
+                <ComboBox items="{ path: 'labels>/labels', sorter: { path: 'LABELID' } }" selectedKey="{newValueModel>/LABELID}" selectionChange=".onLabelIdChange">
+                    <core:Item key="{labels>LABELID}" text="{labels>LABELID}"/>
+                </ComboBox>
+
+                <Label text="VALUEID" required="true"/>
+                <Input value="{newValueModel>/VALUEID}" id="InputValueId"/>
+
+                <Label text="VALUE" required="true"/>
+                <Input value="{newValueModel>/VALUE}"/>
+
+                <Label text="Values ID que están en LABELID"/>
+                <ComboBox id="valueIdComboBox" items="{ path: 'values>/FilteredValues', sorter: { path: 'VALUEID' } }" selectedKey="{newValueModel>/ValuePaid2}">
+                    <core:Item key="{values>VALUEID}" text="{values>VALUEID}"/>
+                </ComboBox>
+
+                <Label text="ALIAS"/>
+                <Input value="{newValueModel>/ALIAS}"/>
+
+                <Label text="IMAGE"/>
+                <Input value="{newValueModel>/IMAGE}"/>
+
+                <Label text="DESCRIPTION"/>
+                <TextArea value="{newValueModel>/DESCRIPTION}" rows="3"/>
+
+                <Label text="Estado Inicial"/>
+                <Switch state="{newValueModel>/DETAIL_ROW/ACTIVED}" customTextOn="ACTIVO" customTextOff="INACTIVO" change=".onSwitchChange"/>
+            </form:SimpleForm>
+        </content>
+        <beginButton>
+            <Button text="Guardar" type="Emphasized" press="onSaveValues"/>
+        </beginButton>
+        <endButton>
+            <Button text="Cancelar" press="onCancelDialog"/>
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>
