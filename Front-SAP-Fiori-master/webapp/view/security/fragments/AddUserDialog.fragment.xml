@@ -72,13 +72,27 @@
             />
 
             <!-- Campo existente: Correo Electrónico -->
-            <Input
-                id="inputUserEmail"
-                value="{newUser>/EMAIL}"
-                placeholder="Correo Electrónico"
-                change=".onFieldChange"
-                liveChange=".onLiveChange"
-            />
+            <HBox
+                id="emailContainer"
+                alignItems="Center"
+            >
+                <Input
+                    id="inputUserEmailUser"
+                    value="{newUser>/EMAIL_USER}"
+                    placeholder="Correo"
+                    liveChange=".onEmailPartChange"
+                />
+                <Text
+                    text="@"
+                    class="sapUiTinyMarginBegin sapUiTinyMarginEnd"
+                />
+                <Input
+                    id="inputUserEmailDomain"
+                    value="{newUser>/EMAIL_DOMAIN}"
+                    placeholder="Dominio"
+                    liveChange=".onEmailPartChange"
+                />
+            </HBox>
 
             <!-- Campo existente: Fecha de nacimiento -->
             <DatePicker
@@ -108,6 +122,19 @@
                 selectedKey="{newUser>/COMPANYID}"
                 selectionChange=".onCompanySelected"
                 placeholder="Compañía"
+            >
+                <core:Item
+                    key="{companiesModel>VALUEID}"
+                    text="{companiesModel>VALUE}"
+                />
+            </ComboBox>
+
+            <ComboBox
+                id="comboBoxSucursales"
+                items="{companiesModel>/value}"
+                selectedKey="{newUser>/COMPANYID}"
+                selectionChange=".onSucursalesSelected"
+                placeholder="Sucursal"
             >
                 <core:Item
                     key="{companiesModel>VALUEID}"

@@ -102,7 +102,7 @@
 
                 <HBox justifyContent="SpaceBetween">
                     <Label text="Acciones Vendidas:" class="sapUiTinyMarginEnd" />
-                    <Text text="{strategyResultModel>/TOTAL_SOLD_UNITS}" />
+                    <Text text="{strategyResultModel>/TOTAL_SOLDUNITS}" />
                 </HBox>
 
                 <HBox justifyContent="SpaceBetween">

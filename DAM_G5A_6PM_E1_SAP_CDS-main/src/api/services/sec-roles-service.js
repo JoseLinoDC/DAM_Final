@@ -1,5 +1,7 @@
 const ZTRoles = require('../models/mongodb/security/ztroles');
-const boom    = require('@hapi/boom');
+const ZTValues = require('../models/mongodb/security/ztvalues');
+
+const boom = require('@hapi/boom');
 
 async function GetAllRoles() {
   try {
@@ -11,9 +13,149 @@ async function GetAllRoles() {
 
 async function GetRoleById(ID) {
   try {
+    // 1. Obtener el rol base
     const role = await ZTRoles.findOne({ ROLEID: ID }).lean();
     if (!role) throw boom.notFound(`No se encontró el rol con ROLEID=${ID}`);
-    return role;
+
+    // 2. Obtener todos los PROCESSIDs únicos para búsqueda optimizada
+    const processIds = role.PRIVILEGES.map(p => p.PROCESSID);
+
+    // 3. Buscar información completa en paralelo
+    const [processValues, allViewValues] = await Promise.all([
+      ZTValues.find({
+        LABELID: 'IdProcess',
+        VALUEID: { $in: processIds }
+      }).lean(),
+
+      ZTValues.find({
+        LABELID: 'IdViews'
+      }).lean()
+    ]);
+
+    // 4. Crear mapeos para acceso rápido
+    const processMap = new Map(processValues.map(p => [p.VALUEID, p]));
+    const viewMap = new Map(allViewValues.map(v => [v.VALUEID, v]));
+
+    // 5. Enriquecer cada privilegio con información completa
+    const enrichedPrivileges = await Promise.all(
+      role.PRIVILEGES.map(async (privilege) => {
+        try {
+          const processValue = processMap.get(privilege.PROCESSID);
+
+          // Caso 1: Proceso no encontrado en catálogo
+          if (!processValue) {
+            return {
+              ...privilege,
+              processInfo: {
+                name: privilege.PROCESSID,
+                description: 'Proceso no registrado en catálogo',
+                active: false,
+                deleted: true
+              },
+              viewInfo: null,
+              error: 'Proceso no encontrado en catálogo'
+            };
+          }
+
+          // Caso 2: Proceso sin VALUEPAID
+          if (!processValue.VALUEPAID) {
+            return {
+              ...privilege,
+              processInfo: {
+                name: processValue.VALUE || privilege.PROCESSID,
+                description: processValue.DESCRIPTION || 'Sin descripción',
+                active: processValue.DETAIL_ROW?.ACTIVED ?? true,
+                deleted: processValue.DETAIL_ROW?.DELETED ?? false
+              },
+              viewInfo: null,
+              error: 'Proceso no tiene vista asociada definida'
+            };
+          }
+
+          // Extraer viewId de VALUEPAID
+          const viewIdMatch = processValue.VALUEPAID.match(/IdViews?-(.*)/);
+          const viewId = viewIdMatch?.[1];
+
+          // Caso 3: Formato de VALUEPAID no válido
+          if (!viewId) {
+            return {
+              ...privilege,
+              processInfo: {
+                name: processValue.VALUE || privilege.PROCESSID,
+                description: processValue.DESCRIPTION || 'Sin descripción',
+                active: processValue.DETAIL_ROW?.ACTIVED ?? true,
+                deleted: processValue.DETAIL_ROW?.DELETED ?? false
+              },
+              viewInfo: null,
+              error: `Formato de vista no válido en VALUEPAID: ${processValue.VALUEPAID}`
+            };
+          }
+
+          // Buscar información completa de la vista
+          const viewValue = viewMap.get(viewId);
+
+          // Caso 4: Vista no encontrada
+          if (!viewValue) {
+            return {
+              ...privilege,
+              processInfo: {
+                name: processValue.VALUE || privilege.PROCESSID,
+                description: processValue.DESCRIPTION || 'Sin descripción',
+                active: processValue.DETAIL_ROW?.ACTIVED ?? true,
+                deleted: processValue.DETAIL_ROW?.DELETED ?? false
+              },
+              viewInfo: null,
+              error: `Vista ${viewId} no encontrada en catálogo`
+            };
+          }
+
+          // Caso 5: Éxito - retornar información completa
+          return {
+            ...privilege,
+            processInfo: {
+              name: processValue.VALUE || privilege.PROCESSID,
+              description: processValue.DESCRIPTION || 'Sin descripción',
+              active: processValue.DETAIL_ROW?.ACTIVED ?? true,
+              deleted: processValue.DETAIL_ROW?.DELETED ?? false
+            },
+            viewInfo: {
+              viewId: viewId,
+              viewName: viewValue.VALUE,
+              viewDescription: viewValue.DESCRIPTION || '',
+              viewImage: viewValue.IMAGE || '',
+              active: viewValue.DETAIL_ROW?.ACTIVED ?? true,
+              deleted: viewValue.DETAIL_ROW?.DELETED ?? false
+            }
+          };
+
+        } catch (error) {
+          return {
+            ...privilege,
+            processInfo: {
+              name: privilege.PROCESSID,
+              description: 'Error al procesar información del proceso',
+              active: false,
+              deleted: false
+            },
+            viewInfo: null,
+            error: `Error interno: ${error.message}`
+          };
+        }
+      })
+    );
+
+    // 6. Retornar el rol con información completa
+    return {
+      ...role,
+      PRIVILEGES: enrichedPrivileges,
+      metadata: {
+        active: role.DETAIL_ROW?.ACTIVED ?? true,
+        deleted: role.DETAIL_ROW?.DELETED ?? false,
+        createdAt: role.DETAIL_ROW?.DETAIL_ROW_REG?.[0]?.REGDATE || role.FechaRegistro,
+        createdBy: role.DETAIL_ROW?.DETAIL_ROW_REG?.[0]?.REGUSER || role.UsuarioRegistro
+      }
+    };
+
   } catch (err) {
     throw boom.internal('Error al obtener el rol', err);
   }

@@ -791,10 +791,13 @@ async function simulateSupertrend(req) {
 
 async function reversionSimple(req) {
   console.log(req);
-
+  //Permite que la simulación se ejecute tanto en un entorno de simulación como en un entorno real.
+  //Si se está ejecutando en un entorno de simulación, usa req.SIMULATION; de lo contrario, usa req directamente.
+  const simulation = req.SIMULATION || req;
   try {
     // Desestructuración de los parámetros requeridos del objeto de solicitud.
-    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
+    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } =
+      simulation || {};
 
     // Validación de la presencia de todos los parámetros esenciales.
     if (!SYMBOL || !STARTDATE || !ENDDATE || AMOUNT === undefined || !USERID) {
@@ -1104,7 +1107,7 @@ async function reversionSimple(req) {
 
     // Retorna los resultados finales de la simulación con la nueva estructura.
 
-    const simulation = {
+    const simulacion = {
       SIMULATIONID,
       USERID,
       STRATEGYID,
@@ -1121,7 +1124,7 @@ async function reversionSimple(req) {
     };
 
     try {
-      const nuevaSimulacion = new SimulationModel(simulation);
+      const nuevaSimulacion = new SimulationModel(simulacion);
       await nuevaSimulacion.save();
       console.log("Simulacion guardada en la base de datos.");
       //console.log(nuevaSimulacion);
@@ -1133,7 +1136,7 @@ async function reversionSimple(req) {
     }
 
     return {
-      simulation,
+      simulacion,
     };
   } catch (ERROR) {
     // Manejo de errores, imprime el mensaje de error y lo relanza.
@@ -1141,7 +1144,6 @@ async function reversionSimple(req) {
     throw ERROR;
   }
 }
-
 // MUCHO CODIGO
 
 // Función auxiliar para calcular stop-loss
@@ -1629,7 +1631,7 @@ function recursivelyFormatDates(obj) {
 
 async function getAllSimulations() {
   try {
-    let simulation = await SimulationModel.find().lean(); 
+    let simulation = await SimulationModel.find().lean();
     const formattedSimulations = simulation.map(recursivelyFormatDates);
     return formattedSimulations;
   } catch (err) {

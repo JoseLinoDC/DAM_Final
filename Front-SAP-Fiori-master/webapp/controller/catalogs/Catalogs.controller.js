@@ -227,6 +227,9 @@ sap.ui.define(
               IMAGE: oEditedData.IMAGE,
               DESCRIPTION: oEditedData.DESCRIPTION,
               SECTION: oEditedData.SECTION,
+              DETAIL_ROW: {
+                ACTIVED: oEditedData.DETAIL_ROW?.ACTIVED ?? true
+              }
             },
           };
 
@@ -262,6 +265,18 @@ sap.ui.define(
                 LABELID: oEditedData.LABELID,
               };
               oTableModel.setProperty("/value", aData);
+
+              var oTable = this.byId("catalogTable");
+              var oItems = oTable.getItems();
+              var oItemToSelect = oItems.find(item => {
+                var ctx = item.getBindingContext();
+                return ctx && ctx.getObject().LABELID === oEditedData.LABELID;
+              });
+              if (oItemToSelect) {
+                oTable.setSelectedItem(oItemToSelect);
+                this.onSelectionChange({ getSource: () => oTable });
+              }
+
             }
           } catch (error) {
             MessageToast.show("Error al actualizar: " + error.message);
@@ -374,6 +389,8 @@ sap.ui.define(
               aData[index].DETAIL_ROW.ACTIVED = bActivate;
               oTableModel.setProperty("/value", aData);
             }
+
+            this.onSelectionChange({ getSource: () => this.byId("catalogTable") });
 
             this.byId("activateButton").setVisible(!bActivate);
             this.byId("activateButton").setEnabled(!bActivate);

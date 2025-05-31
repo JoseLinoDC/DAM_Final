@@ -27,7 +27,7 @@ sap.ui.define([
             const payload = {
                 user: {
                     USERID: userData.USERID,
-                    PASSWORD: isEdit && userData.PASSWORD === "******" ? undefined : userData.PASSWORD,
+                    PASSWORD: userData.PASSWORD,
                     ALIAS: userData.ALIAS,
                     FIRSTNAME: userData.FIRSTNAME,
                     LASTNAME: userData.LASTNAME,
@@ -120,6 +120,10 @@ sap.ui.define([
 
             oNewUser.USERNAME = `${oNewUser.FIRSTNAME || ""} ${oNewUser.LASTNAME || ""}`.trim();
 
+            oNewUser.EMAIL = ((oNewUser.EMAIL_USER || "") && (oNewUser.EMAIL_DOMAIN || ""))
+                ? oNewUser.EMAIL_USER + "@" + oNewUser.EMAIL_DOMAIN
+                : "";
+
             // Lista de campos obligatorios
             const requiredFields = [
                 "USERID", "PASSWORD", "ALIAS", "FIRSTNAME", "LASTNAME", "EMPLOYEEID", "EXTENSION",
@@ -145,6 +149,13 @@ sap.ui.define([
                 MessageBox.error("Debe seleccionar al menos un rol");
                 return;
             }
+
+            // Validar email
+            if (!oNewUser.EMAIL || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(oNewUser.EMAIL)) {
+                MessageBox.error("El correo electrónico no es válido.");
+                return;
+            }
+
 
             // Lllama el payload
             const payload = this.prepareUserPayload(oNewUser, aSelectedRoles, false);
@@ -237,6 +248,12 @@ sap.ui.define([
                 const oEditModel = oView.getModel("editUser");
                 const oUserData = oEditModel.getData();
 
+                // oUserData.USERNAME = `${oUserData.FIRSTNAME || ""} ${oUserData.LASTNAME || ""}`.trim();
+
+                oUserData.EMAIL = ((oUserData.EMAIL_USER || "") && (oUserData.EMAIL_DOMAIN || ""))
+                    ? oUserData.EMAIL_USER + "@" + oUserData.EMAIL_DOMAIN
+                    : "";
+
                 // 2. Validación detallada de campos obligatorios
                 const requiredFields = [
                     "USERID", "PASSWORD", "ALIAS", "FIRSTNAME", "LASTNAME", "EMPLOYEEID", "EXTENSION",
@@ -277,6 +294,13 @@ sap.ui.define([
                 // Asignar el nombre del departamento
                 const sDepartmentName = oSelectedDepto.VALUE;
                 oEditModel.setProperty("/DEPARTMENT", sDepartmentName);
+
+                if (!oUserData.EMAIL || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(oUserData.EMAIL)) {
+                    MessageBox.error("El correo electrónico no es válido.");
+                    oView.setBusy(false);
+                    return;
+                }
+                // ...resto del código...
 
                 // 5. Construir payload con TODOS los campos
                 const payload = this.prepareUserPayload(oUserData, aSelectedRoles, true);
@@ -324,6 +348,7 @@ sap.ui.define([
         },
 
         onEditRoleSelected: function (oEvent) {
+            const oComboBox = oEvent.getSource();
             const oSelectedItem = oEvent.getSource().getSelectedItem();
             if (!oSelectedItem) return;
 
@@ -348,6 +373,7 @@ sap.ui.define([
 
             this._updateSelectedRolesView(aRoles, true);
             oEvent.getSource().setSelectedKey(null);
+
         },
 
         // Cancelar la edición del usuario
@@ -1027,6 +1053,17 @@ sap.ui.define([
 
                 oView.setModel(oEditModel, "editUser");
 
+
+                const email = oEditModel.getProperty("/EMAIL") || "";
+                if (email.includes("@")) {
+                    const [user, domain] = email.split("@");
+                    oEditModel.setProperty("/EMAIL_USER", user);
+                    oEditModel.setProperty("/EMAIL_DOMAIN", domain);
+                } else {
+                    oEditModel.setProperty("/EMAIL_USER", email);
+                    oEditModel.setProperty("/EMAIL_DOMAIN", "");
+                }
+
                 // 5. Cargar combo de compañías
                 await this.loadCompanies();
 
@@ -1167,6 +1204,62 @@ sap.ui.define([
             }
         },
 
+<<<<<<< Updated upstream
+=======
+
+        onPhoneNumberLiveChange: function (oEvent) {
+            let sValue = oEvent.getParameter("value") || "";
+            // Solo números
+            sValue = sValue.replace(/\D/g, "");
+            // Máximo 10 dígitos
+            sValue = sValue.substring(0, 10);
+
+            // Formato 311-247-9021
+            let sFormatted = sValue;
+            if (sValue.length > 6) {
+                sFormatted = sValue.replace(/(\d{3})(\d{3})(\d{1,4})/, "$1-$2-$3");
+            } else if (sValue.length > 3) {
+                sFormatted = sValue.replace(/(\d{3})(\d{1,3})/, "$1-$2");
+            }
+
+            // Detectar modelo (editUser o newUser)
+            const oInput = oEvent.getSource();
+            const oBinding = oInput.getBinding("value");
+            const sModelName = oBinding && oBinding.getModel().sName; // "editUser" o "newUser"
+            const oModel = this.getView().getModel(sModelName);
+
+            if (oModel) {
+                oModel.setProperty("/PHONENUMBER", sFormatted);
+            }
+            oInput.setValue(sFormatted);
+        },
+
+        onEmailPartChange: function (oEvent) {
+            // Detectar modelo (newUser o editUser)
+            const oInput = oEvent.getSource();
+            const oBinding = oInput.getBinding("value");
+            const sModelName = oBinding && oBinding.getModel().sName;
+            const oModel = this.getView().getModel(sModelName);
+
+            if (!oModel) return;
+
+            const sUser = oModel.getProperty("/EMAIL_USER") || "";
+            const sDomain = oModel.getProperty("/EMAIL_DOMAIN") || "";
+
+            let sEmail = "";
+            if (sUser && sDomain) {
+                sEmail = sUser + "@" + sDomain;
+            } else if (sUser) {
+                sEmail = sUser + "@";
+            } else if (sDomain) {
+                sEmail = "@" + sDomain;
+            }
+
+            oModel.setProperty("/EMAIL", sEmail);
+        },
+
+
+>>>>>>> Stashed changes
     });
 
 

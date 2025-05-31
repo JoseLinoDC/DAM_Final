@@ -29,11 +29,43 @@
             <!-- Extensión -->
             <Input id="inputEditExtension" value="{editUser>/EXTENSION}" placeholder="Extensión"/>
 
+<<<<<<< Updated upstream
             <Input id="inputEditUsername" value="{editUser>/USERNAME}" placeholder="Nombre Completo"/>
+=======
+            <!-- <Input
+                id="inputEditUsername"
+                value="{editUser>/USERNAME}"
+                placeholder="Nombre Completo"
+            /> -->
+>>>>>>> Stashed changes
 
             <Input id="inputEditUserPhoneNumber" value="{editUser>/PHONENUMBER}" type="Number" placeholder="Número telefónico"/>
 
+<<<<<<< Updated upstream
             <Input id="inputEditUserEmail" value="{editUser>/EMAIL}" type="Email" placeholder="Correo Electrónico"/>
+=======
+            <HBox
+                id="emailContainer2"
+                alignItems="Center"
+            >
+                <Input
+                    id="inputUserEmailUser2"
+                    value="{editUser>/EMAIL_USER}"
+                    placeholder="Correo"
+                    liveChange=".onEmailPartChange"
+                />
+                <Text
+                    text="@"
+                    class="sapUiTinyMarginBegin sapUiTinyMarginEnd"
+                />
+                <Input
+                    id="inputUserEmailDomain2"
+                    value="{editUser>/EMAIL_DOMAIN}"
+                    placeholder="Dominio"
+                    liveChange=".onEmailPartChange"
+                />
+            </HBox>
+>>>>>>> Stashed changes
 
             <DatePicker id="inputEditUserBirthdayDate" valueFormat="yyyy-MM-dd" displayFormat="dd.MM.yyyy" value="{editUser>/BIRTHDAYDATE}" placeholder="Fecha de nacimiento"/>
 
@@ -48,7 +80,25 @@
                 <core:Item key="{companiesModel>VALUEID}" text="{companiesModel>VALUE}" />
             </ComboBox>
 
+<<<<<<< Updated upstream
             <ComboBox id="comboBoxEditCedis" 
+=======
+            <ComboBox
+                id="comboEditSucursales"
+                items="{companiesModel>/value}"
+                selectedKey="{newUser>/COMPANYID}"
+                selectionChange=".onSucursalesSelected"
+                placeholder="Sucursal"
+            >
+                <core:Item
+                    key="{companiesModel>VALUEID}"
+                    text="{companiesModel>VALUE}"
+                />
+            </ComboBox>
+
+            <ComboBox
+                id="comboBoxEditCedis"
+>>>>>>> Stashed changes
                 selectedKey="{editUser>/DEPARTMENT_ID}"
                 items="{
                     path: 'deptosModel>/value',

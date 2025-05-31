@@ -29,9 +29,16 @@ sap.ui.define([
       const oUiStateModel = new JSONModel({
         editButtonEnabled: false,
         deleteButtonEnabled: false,
-        desactivatedButtonEnabled: false  // botón deshabilitado inicialmente
+        desactivatedButtonEnabled: false
       });
       this.getView().setModel(oUiStateModel, "uiState");
+
+      this.getView().setModel(new JSONModel({
+        selectedRole: {
+          // ... otros datos del rol
+          PRIVILEGES: []
+        }
+      }), "selectedRole");
 
       this.loadRolesData();
     },
@@ -301,15 +308,17 @@ sap.ui.define([
     onRoleSelected: async function () {
       const oTable = this.byId("rolesTable");
       const iIndex = oTable.getSelectedIndex();
+      const oModel = this.getView().getModel("selectedRole");
 
-      const oUiStateModel = this.getView().getModel("uiState"); // ← ✅ Solo una vez
+      const oUiStateModel = this.getView().getModel("uiState");
 
       // Activar o desactivar botones
       if (oUiStateModel) {
         const bIsSelected = iIndex !== -1;
         oUiStateModel.setProperty("/editButtonEnabled", bIsSelected);
         oUiStateModel.setProperty("/deleteButtonEnabled", bIsSelected);
-        oUiStateModel.setProperty("/desactivatedButtonEnabled", bIsSelected); // ← ESTE BOTÓN
+        oUiStateModel.setProperty("/activateButtonEnabled", false);
+        oUiStateModel.setProperty("/deactivateButtonEnabled", false);
       }
 
       if (iIndex === -1) {
@@ -317,7 +326,7 @@ sap.ui.define([
         return;
       }
 
-      const oRolesView = this.getView().getParent().getParent(); // sube hasta Roles.view
+      const oRolesView = this.getView().getParent().getParent();
       const oUiStateModelParent = oRolesView.getModel("uiState");
 
       if (oUiStateModelParent) {
@@ -327,38 +336,48 @@ sap.ui.define([
       const oRole = oTable.getContextByIndex(iIndex).getObject();
       this.getOwnerComponent().setModel(new JSONModel(oRole), "selectedRole");
 
+      const bActive = oRole.ACTIVO === true || oRole.ACTIVO === "true" ||
+        oRole.DETAIL_ROW?.ACTIVED === true || oRole.DETAIL_ROW?.ACTIVED === "true";
+
+      oUiStateModel.setProperty("/activateButtonEnabled", !bActive);
+      oUiStateModel.setProperty("/deactivateButtonEnabled", bActive);
+
       const sId = encodeURIComponent(oRole.ROLEID);
 
       try {
-        // Obtener rol desde backend
+        // 1. Obtener rol desde backend (ya incluye viewInfo en los privilegios)
         const res = await fetch(`http://localhost:3333/api/security/rol/getitem?ID=${sId}`);
         const role = await res.json();
 
-        // Obtener catálogos necesarios
-        const [processes, privileges] = await Promise.all([
-          this.loadCatalogData("IdProcess"),
-          this.loadCatalogData("IdPrivileges")
+        // 2. Obtener catálogos necesarios (solo para información adicional)
+        const [privileges, users] = await Promise.all([
+          this.loadCatalogData("IdPrivileges"),
+          this.loadAllUsers()
         ]);
-        console.log("processes:", processes);
-        // Enriquecer PRIVILEGES → PROCESSES
-        role.PROCESSES = role.PRIVILEGES.map(p => {
 
-          const proc = processes.find(pr => pr.VALUEID === p.PROCESSID);
+        // 3. Transformar PRIVILEGES a PROCESSES con la información de vista
+        role.PROCESSES = role.PRIVILEGES.map(p => {
+          // Obtener nombres de privilegios
           const privs = (Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID])
             .map(pid => privileges.find(pr => pr.VALUEID === pid))
             .filter(Boolean);
 
           return {
             PROCESSID: p.PROCESSID,
-            PROCESSNAME: proc?.VALUE || p.PROCESSID,
-            APPLICATIONNAME: proc?.DESCRIPTION || "-",
-            VIEWNAME: proc?.INDEX || "-",
-            PRIVILEGES: privs.map(x => ({ PRIVILEGENAME: x.VALUE }))
+            PROCESSNAME: p.PROCESSID, // O puedes usar p.viewInfo?.viewName si prefieres
+            APPLICATIONNAME: p.viewInfo?.viewDescription || "-",
+            VIEWNAME: p.viewInfo?.viewName || "-", // Usamos directamente viewInfo del backend
+            VIEWDESCRIPTION: p.viewInfo?.viewDescription || "",
+            VIEWIMAGE: p.viewInfo?.viewImage || "",
+            PRIVILEGES: privs.map(x => ({
+              PRIVILEGEID: x.VALUEID,
+              PRIVILEGENAME: x.VALUE,
+              PRIVILEGEDESCRIPTION: x.DESCRIPTION
+            }))
           };
         });
 
-        // 4. Cargar todos los usuarios y filtrar los del rol
-        const users = await this.loadAllUsers();
+        // 4. Filtrar usuarios del rol
         role.USERS = users
           .filter(u => u.ROLES?.some(r => r.ROLEID === role.ROLEID))
           .map(u => ({
@@ -369,9 +388,33 @@ sap.ui.define([
         // 5. Asignar el modelo enriquecido
         this.getOwnerComponent().setModel(new JSONModel(role), "selectedRole");
 
+        // 6. Opcional: Agrupar por vista si lo necesitas
+        this._groupPrivilegesByView(role);
+
       } catch (e) {
         MessageBox.error("Error al obtener el rol: " + e.message);
       }
+    },
+
+    // Función auxiliar para agrupar privilegios por vista (opcional)
+    _groupPrivilegesByView: function (role) {
+      const grouped = {};
+
+      role.PRIVILEGES.forEach(p => {
+        const viewKey = p.viewInfo?.viewName || "Sin vista asignada";
+        if (!grouped[viewKey]) {
+          grouped[viewKey] = {
+            VIEWNAME: viewKey,
+            VIEWDESCRIPTION: p.viewInfo?.viewDescription || "",
+            VIEWIMAGE: p.viewInfo?.viewImage || "",
+            PRIVILEGES: []
+          };
+        }
+        grouped[viewKey].PRIVILEGES.push(p);
+      });
+
+      role.GROUPED_PRIVILEGES = Object.values(grouped);
+      return role;
     },
 
     //abrir ventana edit Role
@@ -503,8 +546,26 @@ sap.ui.define([
       });
     },
 
+    onActivateRole: async function () {
+      const oRole = this.getView().getModel("selectedRole").getData();
+      if (!oRole || !oRole.ROLEID) return MessageToast.show("Selecciona un rol.");
+
+      try {
+        const res = await fetch("http://localhost:3333/api/security/rol/activateRole", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ROLEID: oRole.ROLEID })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        MessageToast.show("Rol activado correctamente.");
+        this.loadRolesData();
+      } catch (err) {
+        MessageBox.error("Error al activar el rol: " + err.message);
+      }
+    },
+
     //borrado logico
-    onDesactivateRole: function () {
+    onDeactivateRole: function () {
       this._handleRoleAction({
         dialogType: "confirm",
         message: "¿Estás seguro de que deseas desactivar el rol \"{ROLENAME}\"?",

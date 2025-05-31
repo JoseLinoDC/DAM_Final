@@ -1,138 +1,167 @@
 <mvc:View
-  controllerName="com.invertions.sapfiorimodinv.controller.security.RolesDetail"
-  xmlns:mvc="sap.ui.core.mvc"
-  xmlns:m="sap.m"
-  xmlns:core="sap.ui.core"
-  xmlns:layout="sap.ui.layout.form"
-  xmlns:tl="sap.ui.table"
-  xmlns:rowmodes="sap.ui.table.rowmodes">
+    controllerName="com.invertions.sapfiorimodinv.controller.security.RolesDetail"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:m="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:layout="sap.ui.layout.form"
+    xmlns:tl="sap.ui.table"
+    xmlns:rowmodes="sap.ui.table.rowmodes"
+>
+    <m:VBox class="sapUiContentPadding">
+        <!-- 🔹 Encabezado con botones -->
+        <m:Toolbar>
+            <m:Title
+                text="Detalles de rol: {selectedRole>/ROLENAME}"
+                level="H2"
+            />
+            <m:ToolbarSpacer />
+        </m:Toolbar>
 
-  <m:VBox class="sapUiContentPadding">
+        <!-- 🔹 Información del rol -->
+        <m:VBox
+            id="roleInfoBox"
+            class="sapUiSmallMargin"
+        >
+            <m:Text
+                id="roleIdText"
+                text="ID: {selectedRole>/ROLEID}"
+            />
+            <m:Text
+                id="roleDescriptionText"
+                text="{selectedRole>/DESCRIPTION}"
+                class="sapUiSmallMarginBottom"
+            />
+        </m:VBox>
 
-    <!-- 🔹 Encabezado con botones -->
-    <m:Toolbar>
-      <m:Title text="Detalles de rol: {selectedRole>/ROLENAME}" level="H2" />
-      <m:ToolbarSpacer />
-    </m:Toolbar>
+        <!-- 🔹 Procesos del rol -->
+        <m:Panel
+            id="processesPanel"
+            expandable="false"
+            class="sapUiMediumMarginTop"
+        >
+            <m:headerToolbar>
+                <m:Toolbar>
+                    <m:Title
+                        text="Procesos y Privilegios"
+                        level="H4"
+                    />
+                    <m:ToolbarSpacer />
+                    <m:Button
+                        text="Catálogos"
+                        type="Emphasized"
+                        icon="sap-icon://folder"
+                        press=".onOpenCatalogs"
+                    />
+                </m:Toolbar>
+            </m:headerToolbar>
 
-    <!-- 🔹 Información del rol -->
-    <m:VBox id="roleInfoBox" class="sapUiSmallMargin">
-      <m:Text id="roleIdText" text="ID: {selectedRole>/ROLEID}" />
-      <m:Text id="roleDescriptionText" text="{selectedRole>/DESCRIPTION}" class="sapUiSmallMarginBottom" />
+            <tl:Table
+                id="processesTable"
+                rows="{selectedRole>/PROCESSES}"
+                selectionMode="None"
+                alternateRowColors="true"
+                enableColumnReordering="true"
+                width="100%"
+                noData="Este rol no tiene procesos asignados."
+            >
+                <tl:rowMode>
+                    <rowmodes:Fixed rowCount="5" />
+                </tl:rowMode>
+
+                <tl:columns>
+                    <tl:Column>
+                        <m:Label text="Proceso" />
+                        <tl:template>
+                            <m:Text text="{selectedRole>PROCESSNAME}" />
+                        </tl:template>
+                    </tl:Column>
+
+                    <tl:Column>
+                        <m:Label text="Privilegios" />
+                        <tl:template>
+                            <m:HBox wrap="Wrap">
+                                <m:FlexBox
+                                    wrap="Wrap"
+                                    items="{selectedRole>PRIVILEGES}"
+                                >
+                                    <m:items>
+                                        <m:ObjectStatus
+                                            text="{selectedRole>PRIVILEGENAME}"
+                                            class="sapUiTinyMarginEnd sapUiTinyMarginTop"
+                                        />
+                                    </m:items>
+                                </m:FlexBox>
+                            </m:HBox>
+                        </tl:template>
+                    </tl:Column>
+
+                    <tl:Column>
+                        <m:Label text="Vista" />
+                        <tl:template>
+                            <m:Text text="{selectedRole>VIEWNAME}" />
+                        </tl:template>
+                    </tl:Column>
+
+                    <tl:Column>
+                        <m:Label text="Aplicación" />
+                        <tl:template>
+                            <m:Text text="{selectedRole>APPLICATIONNAME}" />
+                        </tl:template>
+                    </tl:Column>
+                    
+                </tl:columns>
+            </tl:Table>
+        </m:Panel>
+
+        <!-- 🔹 Usuarios del rol -->
+        <m:Panel
+            headerText="Usuarios con este Rol"
+            class="sapUiMediumMarginTop"
+            expandable="false"
+        >
+            <m:headerToolbar>
+                <m:Toolbar>
+                    <m:Title
+                        text="Procesos y Privilegios"
+                        level="H4"
+                    />
+                    <m:ToolbarSpacer />
+                    <m:Button
+                        text="Usuarios"
+                        type="Emphasized"
+                        icon="sap-icon://employee-approvals"
+                        press=".onOpenUsers"
+                    />
+                </m:Toolbar>
+            </m:headerToolbar>
+            <tl:Table
+                id="usersTable"
+                rows="{selectedRole>/USERS}"
+                selectionMode="None"
+                alternateRowColors="true"
+                enableColumnReordering="true"
+                width="100%"
+                noData="Este rol no tiene usuarios asignados."
+            >
+                <tl:rowMode>
+                    <rowmodes:Fixed rowCount="5" />
+                </tl:rowMode>
+
+                <tl:columns>
+                    <tl:Column>
+                        <m:Label text="Usuario" />
+                        <tl:template>
+                            <m:Text text="{selectedRole>USERID}" />
+                        </tl:template>
+                    </tl:Column>
+                    <tl:Column>
+                        <m:Label text="Nombre completo" />
+                        <tl:template>
+                            <m:Text text="{selectedRole>USERNAME}" />
+                        </tl:template>
+                    </tl:Column>
+                </tl:columns>
+            </tl:Table>
+        </m:Panel>
     </m:VBox>
-
-    <!-- 🔹 Procesos del rol -->
-     <m:Panel
-  id="processesPanel"
-  expandable="false"
-  class="sapUiMediumMarginTop">
-  
-  <m:headerToolbar>
-    <m:Toolbar>
-      <m:Title text="Procesos y Privilegios" level="H4" />
-      <m:ToolbarSpacer />
-      <m:Button
-        text="Catálogos"
-        type="Emphasized"
-        icon="sap-icon://folder"
-        press=".onOpenCatalogs" />
-    </m:Toolbar>
-  </m:headerToolbar>
-    
-      <tl:Table
-        id="processesTable"
-        rows="{selectedRole>/PROCESSES}"
-        selectionMode="None"
-        alternateRowColors="true"
-        enableColumnReordering="true"
-        width="100%"
-        noData="Este rol no tiene procesos asignados.">
-
-        <tl:rowMode>
-          <rowmodes:Fixed rowCount="5" />
-        </tl:rowMode>
-
-        <tl:columns>
-          <tl:Column>
-            <m:Label text="Proceso" />
-            <tl:template>
-              <m:Text text="{selectedRole>PROCESSNAME}" />
-            </tl:template>
-          </tl:Column>
-          <tl:Column>
-            <m:Label text="Aplicación" />
-            <tl:template>
-              <m:Text text="{selectedRole>APPLICATIONNAME}" />
-              
-            </tl:template>
-          </tl:Column>
-          <tl:Column>
-            <m:Label text="Vista" />
-            <tl:template>
-              <m:Text text="{selectedRole>VIEWNAME}" />
-            </tl:template>
-          </tl:Column>
-          <tl:Column>
-            <m:Label text="Privilegios" />
-            <tl:template>
-              <m:HBox wrap="Wrap">
-                <m:FlexBox wrap="Wrap" items="{selectedRole>PRIVILEGES}">
-                  <m:items>
-                    <m:ObjectStatus text="{selectedRole>PRIVILEGENAME}" class="sapUiTinyMarginEnd sapUiTinyMarginTop" />
-                  </m:items>
-                </m:FlexBox>
-              </m:HBox>
-            </tl:template>
-          </tl:Column>
-        </tl:columns>
-      </tl:Table>
-    </m:Panel>
-
-    <!-- 🔹 Usuarios del rol -->
-    <m:Panel
-      headerText="Usuarios con este Rol"
-      class="sapUiMediumMarginTop"
-      expandable="false">
-    <m:headerToolbar>
-    <m:Toolbar>
-      <m:Title text="Procesos y Privilegios" level="H4" />
-      <m:ToolbarSpacer />
-      <m:Button
-        text="Usuarios"
-        type="Emphasized"
-        icon="sap-icon://employee-approvals"
-        press=".onOpenUsers" />
-    </m:Toolbar>
-    </m:headerToolbar>
-      <tl:Table
-        id="usersTable"
-        rows="{selectedRole>/USERS}"
-        selectionMode="None"
-        alternateRowColors="true"
-        enableColumnReordering="true"
-        width="100%"
-        noData="Este rol no tiene usuarios asignados.">
-
-        <tl:rowMode>
-          <rowmodes:Fixed rowCount="5" />
-        </tl:rowMode>
-
-        <tl:columns>
-          <tl:Column>
-            <m:Label text="Usuario" />
-            <tl:template>
-              <m:Text text="{selectedRole>USERID}" />
-            </tl:template>
-          </tl:Column>
-          <tl:Column>
-            <m:Label text="Nombre completo" />
-            <tl:template>
-              <m:Text text="{selectedRole>USERNAME}" />
-            </tl:template>
-          </tl:Column>
-        </tl:columns>
-      </tl:Table>
-    </m:Panel>
-
-  </m:VBox>
 </mvc:View>

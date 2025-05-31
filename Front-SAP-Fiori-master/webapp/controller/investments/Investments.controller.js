@@ -504,33 +504,22 @@ sap.ui.define(
 
           if (apiStrategyName === "reversionsimple") {
             const rsi = oStrategyModel.getProperty("/rsi");
+            const sma = oStrategyModel.getProperty("/shortSMA");
             SPECS = [
-              {
-                INDICATOR: "rsi",
-                VALUE: rsi,
-              },
+              { INDICATOR: "rsi", VALUE: rsi },
+              { INDICATOR: "sma", VALUE: sma },
             ];
-          } else if (strategy === "supertrend") {
+          } else if (apiStrategyName === "supertrend") {
             SPECS = [
               {
                 INDICATOR: "ma_length",
-                VALUE: oStrategyModel.getProperty("/ma_length"), // Asegúrate de que el tipo de dato sea correcto (número si lo esperas como número)
+                VALUE: oStrategyModel.getProperty("/ma_length"),
               },
-              {
-                INDICATOR: "atr",
-                VALUE: oStrategyModel.getProperty("/atr"), // Asegúrate de que el tipo de dato sea correcto
-              },
-              {
-                INDICATOR: "mult",
-                VALUE: oStrategyModel.getProperty("/mult"), // Asegúrate de que el tipo de dato sea correcto
-              },
-              {
-                INDICATOR: "rr",
-                VALUE: oStrategyModel.getProperty("/rr"), // Asegúrate de que el tipo de dato sea correcto
-              },
+              { INDICATOR: "atr", VALUE: oStrategyModel.getProperty("/atr") },
+              { INDICATOR: "mult", VALUE: oStrategyModel.getProperty("/mult") },
+              { INDICATOR: "rr", VALUE: oStrategyModel.getProperty("/rr") },
             ];
-          }
-          else {
+          } else {
             // Default for MACrossover or any other strategy
             SPECS = [
               {
@@ -549,21 +538,20 @@ sap.ui.define(
             SIMULATION: {
               SYMBOL: sSymbol,
               STARTDATE: this.formatDate(
-                // Usar el formateador público
                 oStrategyModel.getProperty("/startDate")
               ),
-              ENDDATE: this.formatDate(oStrategyModel.getProperty("/endDate")), // Usar el formateador público
+              ENDDATE: this.formatDate(oStrategyModel.getProperty("/endDate")),
               AMOUNT: oStrategyModel.getProperty("/stock"),
-              USERID: "ARAMIS", // Assuming a fixed user ID for now
+              USERID: "ARAMIS", // O el usuario real si lo tienes
               SPECS: SPECS,
             },
           };
 
           // API call
-          const PORT = 4004; // Ensure this matches your backend port
+          // const PORT = 3333; // Ensure this matches your backend port
 
           fetch(
-            `http://localhost:${PORT}/api/inv/simulation?strategy=${apiStrategyName}`, // Usar apiStrategyName
+            `http://localhost:3333/api/security/inversions/simulation?strategy=${apiStrategyName}`, // Usar apiStrategyName
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -928,34 +916,84 @@ sap.ui.define(
             console.log("Simulaciones cargadas:", simulations);
 
             // Transforma los datos para el modelo de historial
-            const historyData = simulations.map(sim => ({
+            const historyData = simulations.map((sim) => ({
               date: new Date(sim.STARTDATE),
               strategyName: sim.IDSTRATEGY,
               symbol: sim.SYMBOL,
               result: sim.SUMMARY?.REALPROFIT ?? 0,
               status: "Completado",
-              _fullRecord: sim // Guarda el registro completo por si lo necesitas
+              _fullRecord: sim, // Guarda el registro completo por si lo necesitas
             }));
 
-            this.getView().getModel("historyModel").setData({
-              values: historyData,
-              filteredCount: simulations.length,
-              selectedCount: 0,
-              filters: {
-                dateRange: null,
-                investmentRange: [0, 10000],
-                profitRange: [-100, 100],
-              }
-            });
+            this.getView()
+              .getModel("historyModel")
+              .setData({
+                values: historyData,
+                filteredCount: simulations.length,
+                selectedCount: 0,
+                filters: {
+                  dateRange: null,
+                  investmentRange: [0, 10000],
+                  profitRange: [-100, 100],
+                },
+              });
 
             // Si hay simulaciones, puedes cargar la primera en el gráfico
             if (simulations.length > 0) {
               this._loadSimulationData(simulations[0]);
             }
-
           } catch (e) {
             console.error("Error cargando simulaciones:", e);
             MessageBox.error("Error al cargar el historial de simulaciones");
+          }
+        },
+
+        /**
+         * Carga los datos de una simulación específica en el gráfico
+         * @param {Object} oSimulation Datos de la simulación
+         * @private
+         */
+        _loadSimulationData: function (oSimulation) {
+          const oStrategyResultModel = this.getView().getModel(
+            "strategyResultModel"
+          );
+
+          // Prepara los datos del gráfico
+          const aChartData = this._prepareTableData(
+            oSimulation.CHART_DATA || [],
+            oSimulation.SIGNALS || []
+          );
+
+          // Actualiza el modelo con los datos reales
+          oStrategyResultModel.setData({
+            hasResults: true,
+            chart_data: aChartData,
+            signals: oSimulation.SIGNALS || [],
+            result: oSimulation.SUMMARY?.REALPROFIT || 0,
+            simulationName: oSimulation.SIMULATIONNAME,
+            symbol: oSimulation.SYMBOL,
+            startDate: new Date(oSimulation.STARTDATE),
+            endDate: new Date(oSimulation.ENDDATE),
+            TOTAL_BOUGHT_UNITS: oSimulation.SUMMARY?.TOTAL_BOUGHT_UNITS || 0,
+            TOTAL_SOLDUNITS:
+              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
+              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
+              0,
+            REMAINING_UNITS: oSimulation.SUMMARY?.REMAINING_UNITS || 0,
+            FINAL_CASH: oSimulation.SUMMARY?.FINAL_CASH || 0,
+            FINAL_VALUE: oSimulation.SUMMARY?.FINAL_VALUE || 0,
+            FINAL_BALANCE: oSimulation.SUMMARY?.FINAL_BALANCE || 0,
+            REAL_PROFIT: oSimulation.SUMMARY?.REAL_PROFIT || 0,
+            PERCENTAGE_RETURN: oSimulation.SUMMARY?.PERCENTAGERETURN || 0,
+          });
+
+          // Actualiza el gráfico
+          this._updateChartMeasuresFeed();
+
+          // Invalida el VizFrame para forzar actualización
+          const oVizFrame = this.byId("idVizFrame");
+          if (oVizFrame) {
+            oVizFrame.invalidate();
           }
         },
 
@@ -983,13 +1021,16 @@ sap.ui.define(
             symbol: oSimulation.SYMBOL,
             startDate: new Date(oSimulation.STARTDATE),
             endDate: new Date(oSimulation.ENDDATE),
-            TOTAL_BOUGHT_UNITS: oSimulation.SUMMARY?.TOTALBOUGHTUNITS || 0,
-            TOTAL_SOLD_UNITS: oSimulation.SUMMARY?.TOTALSOLDUNITS || 0,
-            REMAINING_UNITS: oSimulation.SUMMARY?.REMAININGUNITS || 0,
-            FINAL_CASH: oSimulation.SUMMARY?.FINALCASH || 0,
-            FINAL_VALUE: oSimulation.SUMMARY?.FINALVALUE || 0,
-            FINAL_BALANCE: oSimulation.SUMMARY?.FINALBALANCE || 0,
-            REAL_PROFIT: oSimulation.SUMMARY?.REALPROFIT || 0,
+            TOTAL_BOUGHT_UNITS: oSimulation.SUMMARY?.TOTAL_BOUGHT_UNITS || 0,
+            TOTAL_SOLDUNITS:
+              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
+              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
+              0,
+            REMAINING_UNITS: oSimulation.SUMMARY?.REMAINING_UNITS || 0,
+            FINAL_CASH: oSimulation.SUMMARY?.FINAL_CASH || 0,
+            FINAL_VALUE: oSimulation.SUMMARY?.FINAL_VALUE || 0,
+            FINAL_BALANCE: oSimulation.SUMMARY?.FINAL_BALANCE || 0,
+            REAL_PROFIT: oSimulation.SUMMARY?.REAL_PROFIT || 0,
             PERCENTAGE_RETURN: oSimulation.SUMMARY?.PERCENTAGERETURN || 0,
           });
 
@@ -1002,6 +1043,7 @@ sap.ui.define(
             oVizFrame.invalidate();
           }
         },
+
 
         _parseDate: function (dateValue) {
           // Si ya es un objeto Date, devolverlo directamente
