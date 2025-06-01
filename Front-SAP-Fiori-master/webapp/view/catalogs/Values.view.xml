@@ -17,7 +17,7 @@
             width="20rem"
             id="ValueSearchField"
             placeholder="Buscar valores..."
-            liveChange="onFilterChange"
+            liveChange=".onFilterChange"
         />
         <Button
             text="Agregar"

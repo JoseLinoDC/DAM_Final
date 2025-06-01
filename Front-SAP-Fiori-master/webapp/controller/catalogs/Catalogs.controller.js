@@ -40,34 +40,39 @@ sap.ui.define(
         },
 
         onFilterChange: function (oEvent) {
-          var sQuery = oEvent.getSource().getValue();
+          var sQuery = oEvent.getParameter("newValue").toLowerCase();
           var oTable = this.byId("catalogTable");
           var aItems = oTable.getItems();
-
-          if (!sQuery) {
-            aItems.forEach(function (oItem) {
-              oItem.setVisible(true);
-            });
-            return;
-          }
 
           aItems.forEach(function (oItem) {
             var oContext = oItem.getBindingContext();
             if (!oContext) return;
-
             var oData = oContext.getObject();
+
+            // Filtro especial para "ina" o "act"
+            if (sQuery === "inactivo") {
+              oItem.setVisible(oData.DETAIL_ROW && oData.DETAIL_ROW.ACTIVED === false);
+              return;
+            }
+            if (sQuery === "activo") {
+              oItem.setVisible(oData.DETAIL_ROW && oData.DETAIL_ROW.ACTIVED === true);
+              return;
+            }
+
+            // Búsqueda en todos los campos (incluyendo subcampos)
             var bVisible = Object.keys(oData).some(function (sKey) {
               var value = oData[sKey];
-
               if (typeof value === "string") {
-                return value.toLowerCase().includes(sQuery.toLowerCase());
+                return value.toLowerCase().includes(sQuery);
               } else if (typeof value === "number") {
                 return value.toString().includes(sQuery);
+              } else if (typeof value === "object" && value !== null) {
+                return Object.values(value).some(function (subval) {
+                  return String(subval).toLowerCase().includes(sQuery);
+                });
               }
-
               return false;
             });
-
             oItem.setVisible(bVisible);
           });
         },
@@ -80,27 +85,13 @@ sap.ui.define(
             LABEL: "",
             INDEX: "",
             COLLECTION: "",
-            SECTION: "seguridad",
-            SEQUENCE: 10,
+            SECTION: "",
+            SEQUENCE: 0,
             IMAGE: "",
             DESCRIPTION: "",
             DETAIL_ROW: {
               ACTIVED: true,
               DELETED: false,
-              DETAIL_ROW_REG: [
-                {
-                  CURRENT: false,
-                  REGDATE: new Date().toISOString(),
-                  REGTIME: new Date().toISOString(),
-                  REGUSER: "FIBARRAC",
-                },
-                {
-                  CURRENT: true,
-                  REGDATE: new Date().toISOString(),
-                  REGTIME: new Date().toISOString(),
-                  REGUSER: "FIBARRAC",
-                },
-              ],
             },
           });
 
@@ -289,7 +280,7 @@ sap.ui.define(
           }
         },
 
-        onDeletePressed: function () {
+        onDeletePressed: async function () {
           if (!this._oSelectedItem) return;
 
           var oContext = this._oSelectedItem.getBindingContext();
@@ -302,39 +293,75 @@ sap.ui.define(
                 try {
                   const envRes = await fetch("env.json");
                   const env = await envRes.json();
-                  const url = env.API_LABELSCATALOGOS_URL_BASE + "deleteLabel";
+                  const url = env.API_VALUES_URL_BASE + "getLabelById?labelid=" + encodeURIComponent(oData.LABELID);
 
-                  const res = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ labelid: oData.LABELID }),
-                  });
-
-                  if (!res.ok) {
-                    const err = await res.text();
-                    throw new Error(err || "Error al eliminar label");
+                  // Consulta los values asociados a este LABELID
+                  const res = await fetch(url);
+                  let hasValues = false;
+                  if (res.ok) {
+                    const data = await res.json();
+                    hasValues = Array.isArray(data.value) && data.value.length > 0;
                   }
 
-                  MessageToast.show("Registro eliminado");
-
-                  var oTableModel = this.getView().getModel();
-                  var aData = oTableModel.getProperty("/value") || [];
-
-                  var index = aData.findIndex(
-                    (item) => item.LABELID === oData.LABELID
-                  );
-                  if (index !== -1) {
-                    aData.splice(index, 1);
-                    oTableModel.setProperty("/value", aData);
+                  if (hasValues) {
+                    // Si tiene values, pide confirmación extra
+                    MessageBox.confirm(
+                      "Este catálogo contiene valores asociados. ¿Está seguro de eliminar el catálogo y TODOS sus valores?",
+                      {
+                        actions: [MessageBox.Action.YES, MessageBox.Action.NO],
+                        onClose: async function (sAction2) {
+                          if (sAction2 === MessageBox.Action.YES) {
+                            await this._deleteLabelAndRefresh(oData);
+                          }
+                        }.bind(this),
+                      }
+                    );
+                  } else {
+                    // Si no tiene values, elimina directamente
+                    await this._deleteLabelAndRefresh(oData);
                   }
                 } catch (error) {
-                  MessageToast.show("Error al eliminar: " + error.message);
+                  MessageToast.show("Error al verificar valores: " + error.message);
                 }
               }
             }.bind(this),
           });
+        },
+
+        // Agrega este método privado en tu controlador:
+        _deleteLabelAndRefresh: async function (oData) {
+          try {
+            const envRes = await fetch("env.json");
+            const env = await envRes.json();
+            const urlDelete = env.API_LABELSCATALOGOS_URL_BASE + "deleteLabel";
+            const resDelete = await fetch(urlDelete, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ labelid: oData.LABELID }),
+            });
+
+            if (!resDelete.ok) {
+              const err = await resDelete.text();
+              throw new Error(err || "Error al eliminar label");
+            }
+
+            MessageToast.show("Registro eliminado");
+
+            var oValuesView = this.byId("XMLViewValues");
+            if (oValuesView && oValuesView.getController && oValuesView.getController()) {
+              oValuesView.getController().loadValues();
+            }
+
+            var oTableModel = this.getView().getModel();
+            var aData = oTableModel.getProperty("/value") || [];
+            var index = aData.findIndex((item) => item.LABELID === oData.LABELID);
+            if (index !== -1) {
+              aData.splice(index, 1);
+              oTableModel.setProperty("/value", aData);
+            }
+          } catch (error) {
+            MessageToast.show("Error al eliminar: " + error.message);
+          }
         },
 
         onActivatePressed: function () {
@@ -458,6 +485,24 @@ sap.ui.define(
             // 🚨 Cargar los valores correspondientes a este LABELID
             this.loadValuesByLabelId(oData.LABELID);
 
+            // 🚩 Guardar el LABELID seleccionado en el modelo "labels" de la vista principal
+            var oLabelsModel = this.getView().getModel("labels");
+            if (!oLabelsModel) {
+              oLabelsModel = new sap.ui.model.json.JSONModel();
+              this.getView().setModel(oLabelsModel, "labels");
+            }
+            oLabelsModel.setProperty("/selectedLabelId", oData.LABELID);
+
+            // 🚩 Guardar el LABELID seleccionado en el modelo "labels" de la vista embebida de Values
+            var oValuesView = this.byId("XMLViewValues");
+            if (oValuesView) {
+              var oLabelsModelValues = oValuesView.getModel("labels");
+              if (oValuesView && oValuesView.getController && oValuesView.getController()) {
+                oValuesView.getController().loadValues();
+              }
+              oLabelsModelValues.setProperty("/selectedLabelId", oData.LABELID);
+            }
+
             // 🔥 Opcional: Abrir el panel derecho (si está colapsado)
             this.getView().byId("mainSplitter").getContentAreas()[1].setLayoutData(
               new sap.ui.layout.SplitterLayoutData({ size: "40%" })
@@ -470,6 +515,19 @@ sap.ui.define(
             oDeactivateButton.setEnabled(false);
             oDeactivateButton.setVisible(false);
             oDeleteButton.setEnabled(false);
+
+            // Limpia el LABELID en ambos modelos "labels"
+            var oLabelsModel = this.getView().getModel("labels");
+            if (oLabelsModel) {
+              oLabelsModel.setProperty("/selectedLabelId", "");
+            }
+            var oValuesView = this.byId("XMLViewValues");
+            if (oValuesView) {
+              var oLabelsModelValues = oValuesView.getModel("labels");
+              if (oLabelsModelValues) {
+                oLabelsModelValues.setProperty("/selectedLabelId", "");
+              }
+            }
           }
         },
 

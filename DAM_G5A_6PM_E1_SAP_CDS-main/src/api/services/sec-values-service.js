@@ -3,10 +3,10 @@ const Values = require('../models/mongodb/security/ztvalues');
 
 async function GetAllValues(req) {
   try {
-    const { valueid, active, category } = req.req.query;
+    const { valueid, category } = req.req.query;
     const filter = { 'DETAIL_ROW.DELETED': false };
     if (valueid) filter.VALUEID = valueid;
-    if (active) filter['DETAIL_ROW.ACTIVED'] = active === 'true';
+    // Ya no filtramos por ACTIVED
     if (category) filter.CATEGORY = category;
     return await Values.find(filter)
       .select('-DETAIL_ROW.DETAIL_ROW_REG')
@@ -32,7 +32,7 @@ async function GetLabelById(req) {
     const labelid = req.req.params.labelid || req.req.query.labelid;
     const labels = await Values.find({
       LABELID: labelid,
-      'DETAIL_ROW.DELETED': false
+      // 'DETAIL_ROW.DELETED': false
     }).lean();
 
     return labels || [];
@@ -85,13 +85,13 @@ async function GetBranchesWithDepartments(req) {
   }
 }
 
-
+//Crear un nuevo valor
 async function view(req) {
   try {
     const { value } = req.data;
     if (!value || !value.VALUEID) throw new Error('Datos de valor incompletos');
 
-    if (!value.VALUEPAID) throw new Error('El parámetro "VALUEPAID" (sucursal) es requerido');
+    // if (!value.VALUEPAID) throw new Error('El parámetro "VALUEPAID" (sucursal) es requerido');
 
     const existing = await Values.findOne({ VALUEID: value.VALUEID });
     if (existing) throw new Error('El VALUEID ya está registrado');

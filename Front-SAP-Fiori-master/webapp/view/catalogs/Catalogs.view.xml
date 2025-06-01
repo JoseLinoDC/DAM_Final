@@ -33,7 +33,7 @@
                                 width="20rem"
                                 id="searchField"
                                 placeholder="Buscar en todos los campos..."
-                                liveChange="onFilterChange"
+                                liveChange=".onFilterChange"
                                 showSearchButton="false"
                             />
                             <Button

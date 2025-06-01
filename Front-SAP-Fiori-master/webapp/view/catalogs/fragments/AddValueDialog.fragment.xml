@@ -18,7 +18,10 @@
                     text="LABELID"
                     required="true"
                 />
-                <Text text="{values>/selectedValue/LABELID}" />
+                <Input
+                    value="{newValueModel>/LABELID}"
+                    editable="false"
+                />
 
                 <Label
                     text="VALUEID"
@@ -38,10 +41,10 @@
                 <Label text="Label ID" />
                 <ComboBox
                     items="{
-                          path: 'values>/AllLabels',
-                          sorter: { path: 'LABELID' }
-                        }"
-                    selectedKey="{newValueModel>/ValuePaid1}"
+                        path: 'values>/AllLabels',
+                        sorter: { path: 'LABELID' }
+                    }"
+                    selectedKey="{newValueModel>/SELECTED_LABELID}"
                     selectionChange=".onLabelIdChange"
                 >
                     <core:Item
@@ -49,15 +52,16 @@
                         text="{values>LABELID}"
                     />
                 </ComboBox>
-
+                <!-- ... -->
                 <Label text="Values ID que están en LABELID" />
                 <ComboBox
                     id="valueIdComboBox"
                     items="{
-                              path: 'values>/FilteredValues',
-                              sorter: { path: 'VALUEID' }
-                            }"
-                    selectedKey="{newValueModel>/ValuePaid2}"
+                        path: 'values>/FilteredValues',
+                        sorter: { path: 'VALUEID' }
+                    }"
+                    selectedKey="{newValueModel>/SELECTED_VALUEID}"
+                    selectionChange=".onValueIdComboBoxChange"
                 >
                     <core:Item
                         key="{values>VALUEID}"
@@ -81,7 +85,7 @@
                     state="{newValueModel>/DETAIL_ROW/ACTIVED}"
                     customTextOn="ACTIVO"
                     customTextOff="INACTIVO"
-                    change="onSwitchChange"
+                    change=".onSwitchChange"
                 />
             </form:SimpleForm>
         </content>

@@ -1213,16 +1213,16 @@ function calculateMovingAverageData(
         short_ma:
           shortSlice.length >= shortMa
             ? shortSlice.reduce(
-                (sum, p) => (p && p.close ? sum + p.close : sum),
-                0
-              ) / shortMa
+              (sum, p) => (p && p.close ? sum + p.close : sum),
+              0
+            ) / shortMa
             : null,
         long_ma:
           longSlice.length >= longMa
             ? longSlice.reduce(
-                (sum, p) => (p && p.close ? sum + p.close : sum),
-                0
-              ) / longMa
+              (sum, p) => (p && p.close ? sum + p.close : sum),
+              0
+            ) / longMa
             : null,
       };
     })
@@ -1625,9 +1625,8 @@ async function SimulateIronCondor(simulation) {
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = simulation;
 
   const numR = Math.floor(Math.random() * 1000).toString();
-  const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${
-    USERID[0]
-  }-${numR}`;
+  const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${USERID[0]
+    }-${numR}`;
   const SIMULATIONNAME = `Iron Condor-${numR}`;
   const STRATEGYID = "IC";
 

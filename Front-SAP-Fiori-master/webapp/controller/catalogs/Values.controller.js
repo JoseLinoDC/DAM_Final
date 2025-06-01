@@ -29,7 +29,15 @@ sap.ui.define([
                 values: [], selectedValue: null, selectedValueIn: false
             }), "values");
             oView.setModel(new JSONModel({
-                VALUEID: "", VALUE: "", VALUEPAID: "", ALIAS: "", IMAGE: "", DESCRIPTION: "", LABELID: "", mode: "CREATE"
+                VALUEID: "",
+                VALUE: "",
+                VALUEPAID: "",
+                ALIAS: "",
+                IMAGE: "",
+                DESCRIPTION: "",
+                LABELID: "",
+                DETAIL_ROW: { ACTIVED: true },
+                mode: "CREATE"
             }), "newValueModel");
             var oDeviceModel = new JSONModel(Device);
             oDeviceModel.setDefaultBindingMode("OneWay");
@@ -41,9 +49,10 @@ sap.ui.define([
             this.loadValues();
         },
 
+
         _loadLabels: function () {
-            var oView = this.getView(), oLabelsModel = new JSONModel();
-            oView.setModel(oLabelsModel, "labels");
+            var oView = this.getView();
+            var oValuesModel = oView.getModel("values");
             oView.setBusy(true);
             $.ajax({
                 url: this.env.API_LABELSCATALOGOS_URL_BASE + "getAllLabels",
@@ -51,7 +60,7 @@ sap.ui.define([
                 success: function (data) {
                     var aRaw = data.value || data.data || data || [];
                     var aClean = aRaw.map(function (o) { return { LABELID: o.LABELID || o.labelid || o.LabelID }; });
-                    oLabelsModel.setProperty("/labels", aClean);
+                    oValuesModel.setProperty("/AllLabels", aClean); // Cambiado aquí
                 },
                 error: function () {
                     MessageToast.show("Error al cargar labels desde API_LABELSCATALOGOS_URL_BASE");
@@ -62,9 +71,16 @@ sap.ui.define([
             });
         },
 
+
         openValueDialog: function (ruta) {
             var oView = this.getView();
             this._loadLabels();
+            var selectedLabelId = oView.getModel("newValueModel").getProperty("/SELECTED_LABELID");
+            if (selectedLabelId) {
+                this.loadValuesByLabelId(selectedLabelId);
+            } else {
+                oView.getModel("values").setProperty("/FilteredValues", []);
+            }
             if (!this._oDialog) {
                 Fragment.load({
                     id: oView.getId(),
@@ -81,16 +97,43 @@ sap.ui.define([
         },
 
         onAddValues: function () {
-            this.getView().getModel("newValueModel").setData({
-                VALUEID: "", VALUE: "", VALUEPAID: "", ALIAS: "", IMAGE: "", DESCRIPTION: "", LABELID: "", mode: "CREATE"
+            var oView = this.getView();
+            var oLabelsModel = oView.getModel("labels");
+            var selectedLabelId = oLabelsModel ? oLabelsModel.getProperty("/selectedLabelId") : "";
+
+            // Inicializa el modelo con el LABELID seleccionado
+            oView.getModel("newValueModel").setData({
+                VALUEID: "",
+                VALUE: "",
+                VALUEPAID: "",
+                ALIAS: "",
+                IMAGE: "",
+                DESCRIPTION: "",
+                LABELID: selectedLabelId || "",
+                DETAIL_ROW: { ACTIVED: true },
+                mode: "CREATE"
             });
-            this.getView().getModel("values").setProperty("/selectedValueIn", false);
+            oView.getModel("values").setProperty("/selectedValueIn", false);
             this.openValueDialog("AddValueDialog");
         },
 
         onEditValue: function () {
             const oSel = this.getView().getModel("values").getProperty("/selectedValue") || {};
-            this.getView().getModel("newValueModel").setData({ ...oSel, mode: "EDIT" });
+
+            let selectedLabelId = "";
+            let selectedValueId = "";
+            if (oSel.VALUEPAID && oSel.VALUEPAID.includes("-")) {
+                const parts = oSel.VALUEPAID.split("-");
+                selectedLabelId = parts[0];
+                selectedValueId = parts[1];
+            }
+            this.getView().getModel("newValueModel").setData({
+                ...oSel,
+                SELECTED_LABELID: selectedLabelId,
+                SELECTED_VALUEID: selectedValueId,
+                DETAIL_ROW: { ACTIVED: oSel.DETAIL_ROW?.ACTIVED ?? true },
+                mode: "EDIT"
+            });
             this.openValueDialog("EditValueDialog");
         },
 
@@ -136,14 +179,11 @@ sap.ui.define([
                 method: "GET",
                 success: function (res) {
                     var aItems = res.value || res || [];
-                    if (aItems.length === 0) {
-                        aItems = [{ VALUEID: "default", VALUE: "default" }];
-                    }
                     oValuesModel.setProperty("/FilteredValues", aItems);
                 },
                 error: function () {
                     MessageToast.show("Error al obtener valores filtrados por LABELID");
-                    oValuesModel.setProperty("/FilteredValues", [{ VALUEID: "default", VALUE: "default" }]);
+                    oValuesModel.setProperty("/FilteredValues", []);
                 },
                 complete: function () {
                     oView.setBusy(false);
@@ -153,19 +193,54 @@ sap.ui.define([
 
         onLabelIdChange: function (oEvent) {
             var selectedLabelId = oEvent.getParameter("selectedItem").getKey();
-            this.getView().getModel("newValueModel").setProperty("/LABELID", selectedLabelId);
+            var oModel = this.getView().getModel("newValueModel");
+            oModel.setProperty("/SELECTED_LABELID", selectedLabelId);
+            oModel.setProperty("/SELECTED_VALUEID", "");
             this.loadValuesByLabelId(selectedLabelId);
         },
 
+        onValueIdComboBoxChange: function (oEvent) {
+            var oModel = this.getView().getModel("newValueModel");
+            var selectedValueId = oEvent.getParameter("selectedItem").getKey();
+            oModel.setProperty("/SELECTED_VALUEID", selectedValueId);
+
+        },
+
+
         onSaveValues: function () {
             var oView = this.getView(), oForm = oView.getModel("newValueModel").getData();
+
+            var labelAux = oForm.SELECTED_LABELID;
+            var valueAux = oForm.SELECTED_VALUEID;
+            if (labelAux && valueAux) {
+                oForm.VALUEPAID = labelAux + "-" + valueAux;
+            } else {
+                oForm.VALUEPAID = "";
+            }
+
             if (!oForm.VALUEID || !oForm.VALUE || !oForm.LABELID) {
                 MessageToast.show("VALUEID, VALUE y LABELID son obligatorios");
                 return;
             }
 
+            var bSwitchState = oView.byId("addValueDialog")?.getContent()[0]?.getContent()
+                .find(ctrl => ctrl.isA && ctrl.isA("sap.m.Switch"));
+            if (bSwitchState) {
+                oForm.DETAIL_ROW = oForm.DETAIL_ROW || {};
+                oForm.DETAIL_ROW.ACTIVED = bSwitchState.getState();
+            }
+
             oView.setBusy(true);
-            var allowedFields = ["VALUEID", "VALUE", "VALUEPAID", "ALIAS", "IMAGE", "DESCRIPTION", "LABELID"];
+            var allowedFields = [
+                "VALUEID",
+                "VALUE",
+                "VALUEPAID",
+                "ALIAS",
+                "IMAGE",
+                "DESCRIPTION",
+                "LABELID",
+                "DETAIL_ROW"
+            ];
             var oPayload = {};
             allowedFields.forEach(function (field) {
                 if (oForm[field] !== undefined) {
@@ -191,7 +266,9 @@ sap.ui.define([
                 data: body,
                 success: function () {
                     MessageToast.show("Valor " + (oForm.mode === "CREATE" ? "creado" : "actualizado") + " correctamente");
-                    this.loadValues();
+                    oView.getModel("values").setProperty("/selectedValue", null);
+                    oView.getModel("values").setProperty("/selectedValueIn", false);
+                    this.loadValuesByLabelId(oForm.LABELID);
                     this.onCancelDialog();
                 }.bind(this),
                 error: function () {
@@ -204,12 +281,41 @@ sap.ui.define([
         },
 
         onFilterChange: function (oEvent) {
-            var sQuery = oEvent.getParameter("newValue"),
-                oTable = this.byId("valuesTable"),
-                oBinding = oTable.getBinding("items"),
-                aFilters = [];
-            if (sQuery) aFilters.push(new Filter("VALUEID", FilterOperator.Contains, sQuery));
-            oBinding.filter(aFilters);
+            var sQuery = oEvent.getParameter("newValue").toLowerCase();
+            var oTable = this.byId("valuesTable");
+            var aItems = oTable.getItems();
+
+            aItems.forEach(function (oItem) {
+                var oContext = oItem.getBindingContext("values");
+                if (!oContext) return;
+                var oData = oContext.getObject();
+
+                // Filtro especial para "ina" o "act"
+                if (sQuery === "inactivo") {
+                    oItem.setVisible(oData.DETAIL_ROW && oData.DETAIL_ROW.ACTIVED === false);
+                    return;
+                }
+                if (sQuery === "activo") {
+                    oItem.setVisible(oData.DETAIL_ROW && oData.DETAIL_ROW.ACTIVED === true);
+                    return;
+                }
+
+                // Búsqueda en todos los campos (incluyendo subcampos)
+                var bVisible = Object.keys(oData).some(function (sKey) {
+                    var value = oData[sKey];
+                    if (typeof value === "string") {
+                        return value.toLowerCase().includes(sQuery);
+                    } else if (typeof value === "number") {
+                        return value.toString().includes(sQuery);
+                    } else if (typeof value === "object" && value !== null) {
+                        return Object.values(value).some(function (subval) {
+                            return String(subval).toLowerCase().includes(sQuery);
+                        });
+                    }
+                    return false;
+                });
+                oItem.setVisible(bVisible);
+            });
         },
 
         onActivateValue: function () { this._toggleActive(true); },
@@ -298,6 +404,11 @@ sap.ui.define([
                 oDialog.close();
             }
         },
+
+        onSwitchChange: function (oEvent) {
+            var bState = oEvent.getParameter("state");
+            this.getView().getModel("newValueModel").setProperty("/DETAIL_ROW/ACTIVED", bState);
+        }
 
     });
 });
