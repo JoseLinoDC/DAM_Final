@@ -3,7 +3,7 @@
     xmlns:core="sap.ui.core"
     xmlns:f="sap.ui.layout.form">
     <ResponsivePopover
-        title="Historial de Estrategias"
+        title="Historial de Estrategias Simuladas"
         placement="Bottom"
         showHeader="true"
         contentWidth="1100px"

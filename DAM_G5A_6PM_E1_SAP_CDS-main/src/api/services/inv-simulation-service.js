@@ -1639,6 +1639,17 @@ async function getAllSimulations() {
   }
 }
 
+async function getSimulationById(simulationId) { // Función para obtener una simulación por su ID
+  try {
+    const simulation = await SimulationModel.findOne({ SIMULATIONID: simulationId }).lean();
+    if (!simulation) {
+      return { ERROR: true, MESSAGE: "Simulación no encontrada." };
+    }
+    return simulation;
+  } catch (err) {
+    return { ERROR: true, MESSAGE: err.message };
+  }
+}
 
 module.exports = {
   SimulateMomentum,
@@ -1646,4 +1657,5 @@ module.exports = {
   reversionSimple,
   SimulateMACrossover,
   getAllSimulations,
+  getSimulationById
 };

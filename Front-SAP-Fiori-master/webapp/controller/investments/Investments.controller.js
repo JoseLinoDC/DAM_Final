@@ -21,7 +21,8 @@ sap.ui.define(
   ) {
     "use strict";
 
-    const API_INVERSIONES_URL_BASE = "http://localhost:3333/api/security/inversions/getAllSimulations";
+    const API_INVERSIONES_URL_BASE =
+      "http://localhost:3333/api/security/inversions/getAllSimulations";
 
     return Controller.extend(
       "com.invertions.sapfiorimodinv.controller.investments.Investments",
@@ -81,7 +82,7 @@ sap.ui.define(
               { key: "", text: "Cargando textos..." }, // Placeholder for i18n
               { key: "MACrossover", text: "Cargando textos..." },
               { key: "Reversión Simple", text: "Cargando textos..." },
-              { key: "Supertrend", text: "Cargando textos..." }
+              { key: "Supertrend", text: "Cargando textos..." },
             ],
             // IMPORTANT: Initialize as an ARRAY of strings for VizFrame FeedItem
             chartMeasuresFeed: ["PrecioCierre", "Señal BUY", "Señal SELL"],
@@ -175,13 +176,14 @@ sap.ui.define(
               ATR: 2.5,
               BUY_SIGNAL: 105,
               SELL_SIGNAL: null,
-              INDICATORS_TEXT: "SMA Corta: 102, SMA Larga: 98, RSI: 55, SMA: 100, MA: 101, ATR: 2.5",
+              INDICATORS_TEXT:
+                "SMA Corta: 102, SMA Larga: 98, RSI: 55, SMA: 100, MA: 101, ATR: 2.5",
               SIGNALS: "ACCIÓN BUY",
               RULES: "RAZÓN Test Buy",
               SHARES: 10,
               type: "buy",
               price: 105,
-              reasoning: "Test Buy"
+              reasoning: "Test Buy",
             },
             {
               DATE_GRAPH: new Date(2024, 4, 2),
@@ -199,13 +201,14 @@ sap.ui.define(
               ATR: 2.7,
               BUY_SIGNAL: null,
               SELL_SIGNAL: 110,
-              INDICATORS_TEXT: "SMA Corta: 104, SMA Larga: 99, RSI: 60, SMA: 102, MA: 103, ATR: 2.7",
+              INDICATORS_TEXT:
+                "SMA Corta: 104, SMA Larga: 99, RSI: 60, SMA: 102, MA: 103, ATR: 2.7",
               SIGNALS: "ACCIÓN SELL",
               RULES: "RAZÓN Test Sell",
               SHARES: 5,
               type: "sell",
               price: 110,
-              reasoning: "Test Sell"
+              reasoning: "Test Sell",
             },
             {
               DATE_GRAPH: new Date(2024, 4, 3),
@@ -223,20 +226,31 @@ sap.ui.define(
               ATR: 2.9,
               BUY_SIGNAL: null,
               SELL_SIGNAL: null,
-              INDICATORS_TEXT: "SMA Corta: 106, SMA Larga: 100, RSI: 65, SMA: 104, MA: 105, ATR: 2.9",
+              INDICATORS_TEXT:
+                "SMA Corta: 106, SMA Larga: 100, RSI: 65, SMA: 104, MA: 105, ATR: 2.9",
               SIGNALS: "SIN ACCIÓN",
               RULES: "SIN RAZÓN",
               SHARES: 0,
               type: "",
               price: 0,
-              reasoning: ""
-            }
+              reasoning: "",
+            },
           ];
 
           oStrategyResultModel.setProperty("/chart_data", aTestChartData);
           oStrategyResultModel.setProperty("/signals", [
-            { DATE: "2024-05-01", TYPE: "buy", PRICE: 105, REASONING: "Test Buy" },
-            { DATE: "2024-05-02", TYPE: "sell", PRICE: 110, REASONING: "Test Sell" }
+            {
+              DATE: "2024-05-01",
+              TYPE: "buy",
+              PRICE: 105,
+              REASONING: "Test Buy",
+            },
+            {
+              DATE: "2024-05-02",
+              TYPE: "sell",
+              PRICE: 110,
+              REASONING: "Test Sell",
+            },
           ]);
           oStrategyResultModel.setProperty("/hasResults", true);
 
@@ -277,7 +291,7 @@ sap.ui.define(
                     text: this._oResourceBundle.getText(
                       "movingAverageSupertrendStrategy"
                     ),
-                  }
+                  },
                 ]);
                 console.log("Textos de i18n cargados correctamente.");
               } else {
@@ -302,7 +316,7 @@ sap.ui.define(
               { key: "", text: "No i18n: Seleccione..." },
               { key: "MACrossover", text: "No i18n: Cruce Medias..." },
               { key: "Reversión Simple", text: "No i18n: Reversion Simple..." },
-              { key: "Supertrend", text: "No i18n: Supertrend" }
+              { key: "Supertrend", text: "No i18n: Supertrend" },
             ]);
           }
 
@@ -631,8 +645,8 @@ sap.ui.define(
         formatDate: function (oDate) {
           return oDate
             ? DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" }).format(
-              oDate
-            )
+                oDate
+              )
             : null;
         },
 
@@ -700,11 +714,16 @@ sap.ui.define(
 
           return aData.map((oItem) => {
             // Encuentra la señal correspondiente para esta fecha
-            const signal = aSignals.find((s) => {
-              const signalDate = this._parseDate(s.DATE);
-              const itemDate = this._parseDate(oItem.DATE);
-              return signalDate && itemDate && signalDate.getTime() === itemDate.getTime();
-            }) || {};
+            const signal =
+              aSignals.find((s) => {
+                const signalDate = this._parseDate(s.DATE);
+                const itemDate = this._parseDate(oItem.DATE);
+                return (
+                  signalDate &&
+                  itemDate &&
+                  signalDate.getTime() === itemDate.getTime()
+                );
+              }) || {};
 
             const dateObject = this._parseDate(oItem.DATE);
             const indicators = this._extractIndicators(oItem.INDICATORS);
@@ -718,15 +737,21 @@ sap.ui.define(
               CLOSE: parseFloat(oItem.CLOSE) || 0,
               VOLUME: parseFloat(oItem.VOLUME) || 0,
               ...indicators.values,
-              BUY_SIGNAL: signal.TYPE === "buy" ? parseFloat(oItem.CLOSE) : null,
-              SELL_SIGNAL: signal.TYPE === "sell" ? parseFloat(oItem.CLOSE) : null,
+              BUY_SIGNAL:
+                signal.TYPE === "buy" ? parseFloat(oItem.CLOSE) : null,
+              SELL_SIGNAL:
+                signal.TYPE === "sell" ? parseFloat(oItem.CLOSE) : null,
               INDICATORS_TEXT: indicators.text,
-              SIGNALS: signal.TYPE ? "ACCIÓN " + signal.TYPE.toUpperCase() : "SIN ACCIÓN",
-              RULES: signal.REASONING ? "RAZÓN " + signal.REASONING : "SIN RAZÓN",
+              SIGNALS: signal.TYPE
+                ? "ACCIÓN " + signal.TYPE.toUpperCase()
+                : "SIN ACCIÓN",
+              RULES: signal.REASONING
+                ? "RAZÓN " + signal.REASONING
+                : "SIN RAZÓN",
               SHARES: signal.SHARES || 0,
               type: signal.TYPE || "",
               price: signal.PRICE || 0,
-              reasoning: signal.REASONING || ""
+              reasoning: signal.REASONING || "",
             };
           });
         },
@@ -860,7 +885,8 @@ sap.ui.define(
          * Event handler for showing investment history popover.
          * @param {sap.ui.base.Event} oEvent The event object
          */
-        onHistoryPress: function (oEvent) {
+
+        onHistoryPress: async function (oEvent) {
           if (!this._oHistoryPopover) {
             this._oHistoryPopover = sap.ui.xmlfragment(
               "com.invertions.sapfiorimodinv.view.investments.fragments.InvestmentHistoryPanel",
@@ -868,23 +894,128 @@ sap.ui.define(
             );
             this.getView().addDependent(this._oHistoryPopover);
 
-            // Agrega manejador para la selección de items
             const oTable = this.byId("historyTable");
             if (oTable) {
-              oTable.attachSelectionChange(function (oEvent) {
-                const oSelectedItem = oEvent.getParameter("listItem").getBindingContext("historyModel").getObject();
-                if (oSelectedItem._fullRecord) {
-                  this._loadSimulationData(oSelectedItem._fullRecord);
-                }
-              }.bind(this));
+              oTable.attachSelectionChange(
+                function (oEvent) {
+                  const oSelectedItem = oEvent
+                    .getParameter("listItem")
+                    .getBindingContext("historyModel")
+                    .getObject();
+                  if (oSelectedItem._fullRecord) {
+                    this._loadSimulationData(oSelectedItem._fullRecord);
+                  }
+                }.bind(this)
+              );
             }
           }
 
-          if (this._oHistoryPopover.isOpen()) {
-            this._oHistoryPopover.close();
+          try {
+            const response = await fetch(
+              "http://localhost:3333/api/security/inversions/getAllSimulations"
+            );
+            if (!response.ok) throw new Error("Error en la solicitud");
+
+            const result = await response.json();
+
+            // Normaliza el array de simulaciones
+            const simulations = Array.isArray(result)
+              ? result
+              : result.data || result.simulations || result.value || [];
+
+            // Mapea los datos a la estructura que espera la tabla
+            const strategies = simulations.map((item) => ({
+              strategyName: item.SIMULATIONNAME || item.strategyName || "", // editable
+              details: {
+                STRATEGY: item.STRATEGYID || item.IDSTRATEGY || "",
+                STARTDATE: item.STARTDATE
+                  ? new Date(item.STARTDATE?.$date || item.STARTDATE)
+                  : null,
+                ENDDATE: item.ENDDATE
+                  ? new Date(item.ENDDATE?.$date || item.ENDDATE)
+                  : null,
+              },
+              symbol: item.SYMBOL || "",
+              result:
+                item.SUMMARY?.FINAL_BALANCE ??
+                item.SUMMARY?.FINALBALANCE ??
+                item.SUMMARY?.REALPROFIT ??
+                0,
+              _fullRecord: item,
+            }));
+
+            // Calcula el total filtrado (puedes agregar lógica de filtros aquí si lo necesitas)
+            const filteredCount = strategies.length;
+
+            // Crea el modelo con la estructura esperada
+            const oData = {
+              strategies,
+              filteredCount,
+              isDeleteMode: false,
+              selectedCount: 0,
+              filters: {
+                dateRange: null,
+                investmentRange: [0, 10000],
+                profitRange: [-100, 100],
+              },
+            };
+
+            const oModel = new sap.ui.model.json.JSONModel(oData);
+            this.getView().setModel(oModel, "historyModel");
+
+            if (this._oHistoryPopover.isOpen()) {
+              this._oHistoryPopover.close();
+              return;
+            }
+            this._oHistoryPopover.openBy(oEvent.getSource());
+          } catch (err) {
+            sap.m.MessageToast.show("Error al obtener simulaciones");
+            console.error(err);
+          }
+        },
+
+        onLoadStrategy: function () {
+          // Usa el mismo fragmentName que usas en onHistoryPress
+          const FRAGMENT_ID =
+            "com.invertions.sapfiorimodinv.view.investments.fragments.InvestmentHistoryPanel";
+          const oTable = sap.ui.core.Fragment.byId(FRAGMENT_ID, "historyTable");
+          if (!oTable) {
+            sap.m.MessageToast.show("Tabla de historial no encontrada.");
             return;
           }
-          this._oHistoryPopover.openBy(oEvent.getSource());
+
+          const aSelectedItems = oTable.getSelectedItems();
+          if (!aSelectedItems || aSelectedItems.length === 0) {
+            sap.m.MessageToast.show("Seleccione una estrategia para cargar.");
+            return;
+          }
+
+          const oSelectedContext =
+            aSelectedItems[0].getBindingContext("historyModel");
+          if (!oSelectedContext) {
+            sap.m.MessageToast.show(
+              "No se pudo obtener el contexto del seleccionado."
+            );
+            return;
+          }
+
+          const oSelectedStrategy = oSelectedContext.getObject();
+          if (!oSelectedStrategy || !oSelectedStrategy._fullRecord) {
+            sap.m.MessageToast.show(
+              "No se encontró el registro completo de la simulación."
+            );
+            return;
+          }
+
+          // Carga la simulación en la gráfica y resumen
+          this._loadSimulationData(oSelectedStrategy._fullRecord);
+
+          // Cierra el popover de historial si está abierto
+          if (this._oHistoryPopover && this._oHistoryPopover.isOpen()) {
+            this._oHistoryPopover.close();
+          }
+
+          sap.m.MessageToast.show("Simulación cargada.");
         },
 
         /**
@@ -953,97 +1084,81 @@ sap.ui.define(
          * @param {Object} oSimulation Datos de la simulación
          * @private
          */
-        _loadSimulationData: function (oSimulation) {
-          const oStrategyResultModel = this.getView().getModel(
-            "strategyResultModel"
-          );
-
-          // Prepara los datos del gráfico
-          const aChartData = this._prepareTableData(
-            oSimulation.CHART_DATA || [],
-            oSimulation.SIGNALS || []
-          );
-
-          // Actualiza el modelo con los datos reales
-          oStrategyResultModel.setData({
-            hasResults: true,
-            chart_data: aChartData,
-            signals: oSimulation.SIGNALS || [],
-            result: oSimulation.SUMMARY?.REALPROFIT || 0,
-            simulationName: oSimulation.SIMULATIONNAME,
-            symbol: oSimulation.SYMBOL,
-            startDate: new Date(oSimulation.STARTDATE),
-            endDate: new Date(oSimulation.ENDDATE),
-            TOTAL_BOUGHT_UNITS: oSimulation.SUMMARY?.TOTAL_BOUGHT_UNITS || 0,
-            TOTAL_SOLDUNITS:
-              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
-              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
-              0,
-            REMAINING_UNITS: oSimulation.SUMMARY?.REMAINING_UNITS || 0,
-            FINAL_CASH: oSimulation.SUMMARY?.FINAL_CASH || 0,
-            FINAL_VALUE: oSimulation.SUMMARY?.FINAL_VALUE || 0,
-            FINAL_BALANCE: oSimulation.SUMMARY?.FINAL_BALANCE || 0,
-            REAL_PROFIT: oSimulation.SUMMARY?.REAL_PROFIT || 0,
-            PERCENTAGE_RETURN: oSimulation.SUMMARY?.PERCENTAGERETURN || 0,
-          });
-
-          // Actualiza el gráfico
-          this._updateChartMeasuresFeed();
-
-          // Invalida el VizFrame para forzar actualización
-          const oVizFrame = this.byId("idVizFrame");
-          if (oVizFrame) {
-            oVizFrame.invalidate();
-          }
-        },
 
         /**
          * Carga los datos de una simulación específica en el gráfico
          * @param {Object} oSimulation Datos de la simulación
          * @private
          */
-        _loadSimulationData: function (oSimulation) {
-          const oStrategyResultModel = this.getView().getModel("strategyResultModel");
-
-          // Prepara los datos del gráfico
-          const aChartData = this._prepareTableData(
-            oSimulation.CHART_DATA || [],
-            oSimulation.SIGNALS || []
+        _loadSimulationData: async function (oSimulation) {
+          const oStrategyResultModel = this.getView().getModel(
+            "strategyResultModel"
           );
+          let simulationData = oSimulation;
 
-          // Actualiza el modelo con los datos reales
+          if (oSimulation && oSimulation.SIMULATIONID) {
+            try {
+              const response = await fetch(
+                `http://localhost:3333/api/security/inversions/getSimulationById?simulationId=${encodeURIComponent(
+                  oSimulation.SIMULATIONID
+                )}`
+              );
+              if (!response.ok)
+                throw new Error("No se pudo obtener la simulación");
+              const result = await response.json();
+              simulationData = Array.isArray(result) ? result[0] : result;
+            } catch (e) {
+              sap.m.MessageToast.show(
+                "Error al cargar la simulación seleccionada"
+              );
+              console.error(e);
+              return;
+            }
+          }
+
+          // 🔥 Prepara los datos para el modelo
+          const aChartData = this._prepareTableData(
+            simulationData.CHART_DATA || [],
+            simulationData.SIGNALS || []
+          );
+          const summary = simulationData.SUMMARY || {};
+
           oStrategyResultModel.setData({
             hasResults: true,
             chart_data: aChartData,
-            signals: oSimulation.SIGNALS || [],
-            result: oSimulation.SUMMARY?.REALPROFIT || 0,
-            simulationName: oSimulation.SIMULATIONNAME,
-            symbol: oSimulation.SYMBOL,
-            startDate: new Date(oSimulation.STARTDATE),
-            endDate: new Date(oSimulation.ENDDATE),
-            TOTAL_BOUGHT_UNITS: oSimulation.SUMMARY?.TOTAL_BOUGHT_UNITS || 0,
-            TOTAL_SOLDUNITS:
-              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
-              oSimulation.SUMMARY?.TOTAL_SOLDUNITS ||
-              0,
-            REMAINING_UNITS: oSimulation.SUMMARY?.REMAINING_UNITS || 0,
-            FINAL_CASH: oSimulation.SUMMARY?.FINAL_CASH || 0,
-            FINAL_VALUE: oSimulation.SUMMARY?.FINAL_VALUE || 0,
-            FINAL_BALANCE: oSimulation.SUMMARY?.FINAL_BALANCE || 0,
-            REAL_PROFIT: oSimulation.SUMMARY?.REAL_PROFIT || 0,
-            PERCENTAGE_RETURN: oSimulation.SUMMARY?.PERCENTAGERETURN || 0,
+            signals: simulationData.SIGNALS || [],
+            result: summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0,
+            simulationName: simulationData.SIMULATIONNAME,
+            symbol: simulationData.SYMBOL,
+            startDate: new Date(simulationData.STARTDATE),
+            endDate: new Date(simulationData.ENDDATE),
+            TOTAL_BOUGHT_UNITS:
+              summary.TOTAL_BOUGHT_UNITS ?? summary.TOTALBOUGHTUNITS ?? 0,
+            TOTAL_SOLD_UNITS:
+              summary.TOTAL_SOLD_UNITS ?? summary.TOTALSOLDUNITS ?? 0,
+            REMAINING_UNITS:
+              summary.REMAINING_UNITS ?? summary.REMAININGUNITS ?? 0,
+            FINAL_CASH: summary.FINAL_CASH ?? summary.FINALCASH ?? 0,
+            FINAL_VALUE: summary.FINAL_VALUE ?? summary.FINALVALUE ?? 0,
+            FINAL_BALANCE: summary.FINAL_BALANCE ?? summary.FINALBALANCE ?? 0,
+            REAL_PROFIT: summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0,
+            PERCENTAGE_RETURN:
+              summary.PERCENTAGE_RETURN ?? summary.PERCENTAGERETURN ?? 0,
           });
 
-          // Actualiza el gráfico
+          // 🔥 Forzar refresh para que la tabla y el VizFrame se actualicen automáticamente
+          oStrategyResultModel.refresh(true);
+
+          // 🔥 Actualiza el feed de medidas del gráfico según la estrategia actual
           this._updateChartMeasuresFeed();
 
-          // Invalida el VizFrame para forzar actualización
+          // 🔥 Forzar el re-render del VizFrame
           const oVizFrame = this.byId("idVizFrame");
           if (oVizFrame) {
-            oVizFrame.invalidate();
+            oVizFrame.getModel().refresh(true); // Actualiza modelo vinculado
+            oVizFrame.invalidate(); // Fuerza render
           }
         },
-
 
         _parseDate: function (dateValue) {
           // Si ya es un objeto Date, devolverlo directamente
@@ -1052,40 +1167,44 @@ sap.ui.define(
           }
 
           // Si es string ISO con timezone (ej: "2024-01-02T00:00:00.000Z")
-          if (typeof dateValue === 'string' && dateValue.includes('T')) {
+          if (typeof dateValue === "string" && dateValue.includes("T")) {
             return new Date(dateValue);
           }
 
           // Si es string con solo fecha (ej: "2024-01-02")
-          if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          if (
+            typeof dateValue === "string" &&
+            dateValue.match(/^\d{4}-\d{2}-\d{2}$/)
+          ) {
             return new Date(dateValue);
           }
 
           // Si no coincide con ningún formato conocido
-          console.warn('Formato de fecha no reconocido:', dateValue);
+          console.warn("Formato de fecha no reconocido:", dateValue);
           return null;
         },
 
         _extractIndicators: function (aIndicators) {
           const result = {
             values: {},
-            textParts: []
+            textParts: [],
           };
 
           if (Array.isArray(aIndicators)) {
-            aIndicators.forEach(indicator => {
+            aIndicators.forEach((indicator) => {
               const value = parseFloat(indicator.VALUE) || 0;
               // Mapea nombres de indicadores para consistencia
               const indicatorKey = indicator.INDICATOR.toLowerCase();
               result.values[indicatorKey.toUpperCase()] = value; // Ej: 'sma' -> 'SMA'
-              result.textParts.push(`${indicatorKey.toUpperCase()}: ${value.toFixed(2)}`);
+              result.textParts.push(
+                `${indicatorKey.toUpperCase()}: ${value.toFixed(2)}`
+              );
             });
           }
 
           result.text = result.textParts.join(", ") || "N/A";
           return result;
-        }
-
+        },
       }
     );
   }

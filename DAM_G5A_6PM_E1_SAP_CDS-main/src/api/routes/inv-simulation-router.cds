@@ -14,4 +14,9 @@ service InversionsRoutes @(path: '/api/security/inversions') {
     @path            : 'getAllSimulations'
     function getAllSimulations() returns array of simulations;
 
+    @Core.Description: 'Obtener simulación por SIMULATIONID'
+    @path            : 'getSimulationById'
+    function getSimulationById(simulationId: String) returns simulations;
+
+
 }
