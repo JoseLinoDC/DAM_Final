@@ -493,8 +493,7 @@ async function SimulateMomentum(req) {
   };
 }
 
-/// ---------RESTO DE ESTRATEGIAS ------ 
-
+/// ---------RESTO DE ESTRATEGIAS ------
 
 async function simulateSupertrend(req) {
   console.log(req);
@@ -1214,16 +1213,16 @@ function calculateMovingAverageData(
         short_ma:
           shortSlice.length >= shortMa
             ? shortSlice.reduce(
-              (sum, p) => (p && p.close ? sum + p.close : sum),
-              0
-            ) / shortMa
+                (sum, p) => (p && p.close ? sum + p.close : sum),
+                0
+              ) / shortMa
             : null,
         long_ma:
           longSlice.length >= longMa
             ? longSlice.reduce(
-              (sum, p) => (p && p.close ? sum + p.close : sum),
-              0
-            ) / longMa
+                (sum, p) => (p && p.close ? sum + p.close : sum),
+                0
+              ) / longMa
             : null,
       };
     })
@@ -1598,25 +1597,227 @@ async function SimulateMACrossover(body) {
   }
 }
 
+function calculateRSI2(data, period = 14) {
+  const rsi = [];
+  let gains = 0,
+    losses = 0;
+  for (let i = 1; i < data.length; i++) {
+    const delta = data[i].CLOSE - data[i - 1].CLOSE;
+    gains += delta > 0 ? delta : 0;
+    losses += delta < 0 ? -delta : 0;
+    if (i >= period) {
+      const avgGain = gains / period;
+      const avgLoss = losses / period;
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      rsi.push({ DATE: data[i].DATE, RSI: 100 - 100 / (1 + rs) });
+      const prevDelta = data[i - period + 1].CLOSE - data[i - period].CLOSE;
+      if (prevDelta > 0) gains -= prevDelta;
+      else losses -= -prevDelta;
+    } else {
+      rsi.push({ DATE: data[i].DATE, RSI: null });
+    }
+  }
+  return rsi;
+}
+
+//Simulacion IronCondor
+async function SimulateIronCondor(simulation) {
+  const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = simulation;
+
+  const numR = Math.floor(Math.random() * 1000).toString();
+  const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${
+    USERID[0]
+  }-${numR}`;
+  const SIMULATIONNAME = `Iron Condor-${numR}`;
+  const STRATEGYID = "IC";
+
+  // Validaciones básicas
+  const missingParams = [];
+  if (!SYMBOL) missingParams.push("SYMBOL");
+  if (!STARTDATE || isNaN(new Date(STARTDATE))) missingParams.push("STARTDATE");
+  if (!ENDDATE || isNaN(new Date(ENDDATE))) missingParams.push("ENDDATE");
+  if (new Date(STARTDATE) >= new Date(ENDDATE))
+    missingParams.push("STARTDATE < ENDDATE");
+  if (!AMOUNT || AMOUNT <= 0) missingParams.push("AMOUNT");
+  if (!USERID) missingParams.push("USERID");
+  if (!SPECS || !Array.isArray(SPECS)) missingParams.push("SPECS");
+
+  if (missingParams.length > 0) {
+    return { message: `FALTAN PARÁMETROS: ${missingParams.join(", ")}.` };
+  }
+
+  // Parsear SPECS
+  const specs = SPECS.reduce((acc, { INDICATOR, VALUE }) => {
+    acc[INDICATOR.toUpperCase()] = Number(VALUE);
+    return acc;
+  }, {});
+
+  const width = specs.WIDTH || 5;
+  const premium = specs.PREMIUM || 2;
+  const rsiPeriod = specs.RSI_PERIOD || 14;
+  const rsiMin = specs.RSI_MIN || 40;
+  const rsiMax = specs.RSI_MAX || 60;
+  const volThreshold = specs.VOL_THRESHOLD || 1000000;
+  const expiryDays = specs.EXPIRY_DAYS || 5;
+
+  const API_URL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
+  let response;
+  try {
+    response = await axios.get(API_URL);
+  } catch (error) {
+    return { message: "Error fetching market data: " + error.message };
+  }
+
+  const rawData = response.data["Time Series (Daily)"];
+  if (!rawData) return { message: "Datos de mercado no disponibles." };
+
+  const data = Object.entries(rawData)
+    .map(([date, val]) => ({
+      DATE: date,
+      CLOSE: +val["4. close"],
+      HIGH: +val["2. high"],
+      LOW: +val["3. low"],
+      VOLUME: +val["5. volume"],
+    }))
+    .sort((a, b) => new Date(a.DATE) - new Date(b.DATE));
+
+  const inRangeData = data.filter(
+    (d) => d.DATE >= STARTDATE && d.DATE <= ENDDATE
+  );
+  if (inRangeData.length === 0)
+    return { message: "No hay datos en el rango especificado." };
+
+  // Calcular RSI
+  const rsiData = calculateRSI2(data, rsiPeriod);
+  const rsiMap = Object.fromEntries(rsiData.map((d) => [d.DATE, d.RSI]));
+
+  let totalProfit = 0,
+    wins = 0,
+    losses = 0;
+  const trades = [];
+
+  for (let i = 0; i < inRangeData.length - expiryDays; i++) {
+    const day = inRangeData[i];
+    const rsiVal = rsiMap[day.DATE];
+    if (rsiVal === null || rsiVal < rsiMin || rsiVal > rsiMax) continue;
+    if (day.VOLUME < volThreshold) continue;
+
+    const price = day.CLOSE;
+    const shortPut = price - width;
+    const longPut = shortPut - width;
+    const shortCall = price + width;
+    const longCall = shortCall + width;
+    const maxProfit = premium * 100;
+    const maxLoss = width * 100 - maxProfit;
+
+    const expiryIndex =
+      i + expiryDays < inRangeData.length
+        ? i + expiryDays
+        : inRangeData.length - 1;
+    const expiryPrice = inRangeData[expiryIndex].CLOSE;
+
+    let tradeResult, outcome;
+    if (expiryPrice > shortPut && expiryPrice < shortCall) {
+      tradeResult = maxProfit;
+      outcome = "WIN";
+      wins++;
+    } else {
+      tradeResult = -maxLoss;
+      outcome = "LOSS";
+      losses++;
+    }
+
+    totalProfit += tradeResult;
+
+    trades.push({
+      DATE: day.DATE,
+      TYPE: "IronCondor",
+      PRICE: price,
+      REASONING: `Expiry: ${expiryPrice}, Result: ${outcome}`,
+      SHARES: 0,
+    });
+  }
+
+  const FINAL_BALANCE = Number(AMOUNT) + totalProfit;
+  const PERCENTAGE_RETURN =
+    ((FINAL_BALANCE - Number(AMOUNT)) / Number(AMOUNT)) * 100;
+
+  const simulacion = {
+    SIMULATIONID,
+    USERID,
+    STRATEGYID,
+    SIMULATIONNAME,
+    SYMBOL,
+    STARTDATE,
+    ENDDATE,
+    AMOUNT,
+    SPECS,
+    INDICATORS: SPECS,
+    SIGNALS: trades,
+    SUMMARY: {
+      TOTAL_BOUGHT_UNITS: 0,
+      TOTAL_SOLD_UNITS: 0,
+      REMAINING_UNITS: 0,
+      FINAL_CASH: FINAL_BALANCE,
+      FINAL_VALUE: 0,
+      FINAL_BALANCE: FINAL_BALANCE,
+      REAL_PROFIT: totalProfit,
+      PERCENTAGE_RETURN: PERCENTAGE_RETURN,
+    },
+    CHART_DATA: inRangeData.map((d) => ({
+      DATE: d.DATE,
+      OPEN: d.CLOSE,
+      HIGH: d.HIGH,
+      LOW: d.LOW,
+      CLOSE: d.CLOSE,
+      VOLUME: d.VOLUME,
+      INDICATORS: [{ INDICATOR: "RSI", VALUE: rsiMap[d.DATE] ?? 0 }],
+    })),
+    DETAIL_ROW: {
+      ACTIVED: true,
+      DELETED: false,
+      DETAIL_ROW_REG: [
+        {
+          CURRENT: true,
+          REGDATE: new Date(),
+          REGTIME: new Date().toTimeString().slice(0, 8),
+          REGUSER: USERID,
+        },
+      ],
+    },
+  };
+
+  try {
+    const nuevaSimulacion = new SimulationModel(simulacion);
+    await nuevaSimulacion.save();
+    console.log("Simulación Iron Condor guardada correctamente.");
+  } catch (error) {
+    console.error("Error al guardar en MongoDB:", error.message);
+    return { status: 500, message: error.message };
+  }
+}
+
 /*-----------------------------------------------------------------------------------------------------------
   Consultas para traer informacion de las simulaciones
 -----------------------------------------------------------------------------------------------------------*/
 
-
 function formatDateToYYYYMMDD(date) {
   if (!date) return null;
   const d = new Date(date);
-  return d.toISOString().split('T')[0]; // yyyy-mm-dd
+  return d.toISOString().split("T")[0]; // yyyy-mm-dd
 }
 
 function recursivelyFormatDates(obj) {
   if (Array.isArray(obj)) {
     return obj.map(recursivelyFormatDates);
-  } else if (obj && typeof obj === 'object') {
+  } else if (obj && typeof obj === "object") {
     const formatted = {};
     for (const key in obj) {
       const value = obj[key];
-      if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
+      if (
+        value instanceof Date ||
+        (typeof value === "string" && !isNaN(Date.parse(value)))
+      ) {
         formatted[key] = formatDateToYYYYMMDD(value);
       } else {
         formatted[key] = recursivelyFormatDates(value);
@@ -1628,20 +1829,22 @@ function recursivelyFormatDates(obj) {
   }
 }
 
-
 async function getAllSimulations() {
   try {
     let simulation = await SimulationModel.find().lean();
     const formattedSimulations = simulation.map(recursivelyFormatDates);
     return formattedSimulations;
   } catch (err) {
-    throw boom.internal('Error al obtener las simulaciones', err);
+    throw boom.internal("Error al obtener las simulaciones", err);
   }
 }
 
-async function getSimulationById(simulationId) { // Función para obtener una simulación por su ID
+async function getSimulationById(simulationId) {
+  // Función para obtener una simulación por su ID
   try {
-    const simulation = await SimulationModel.findOne({ SIMULATIONID: simulationId }).lean();
+    const simulation = await SimulationModel.findOne({
+      SIMULATIONID: simulationId,
+    }).lean();
     if (!simulation) {
       return { ERROR: true, MESSAGE: "Simulación no encontrada." };
     }
@@ -1657,5 +1860,6 @@ module.exports = {
   reversionSimple,
   SimulateMACrossover,
   getAllSimulations,
-  getSimulationById
+  getSimulationById,
+  SimulateIronCondor,
 };

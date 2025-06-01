@@ -199,6 +199,71 @@
                         />
 
                         <Label />
+
+                        <!-- IronCondor -->
+                         <Label text="Width" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/width}"
+                            min="1"
+                            step="1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="Premium" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/premium}"
+                            min="0"
+                            step="0.1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="RSI Period" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/rsiPeriod}"
+                            min="1"
+                            step="1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="RSI Min" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/rsiMin}"
+                            min="1"
+                            step="1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="RSI Max" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/rsiMax}"
+                            min="1"
+                            step="1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="Volume Threshold" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/volThreshold}"
+                            min="1"
+                            step="1000"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
+                        <Label text="Expiry Days" visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"/>
+                        <StepInput
+                            value="{strategyAnalysisModel>/expiryDays}"
+                            min="1"
+                            step="1"
+                            width="100%"
+                            visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
+                        />
+
                         <Button
                             id="runAnalysisButtonInFragment"
                             text="{i18n>runAnalysisButtonText}"

@@ -292,6 +292,10 @@ sap.ui.define(
                       "movingAverageSupertrendStrategy"
                     ),
                   },
+                  {
+                    key: "IronCondor",
+                    text: this._oResourceBundle.getText("ironCondorStrategy"),
+                  },
                 ]);
                 console.log("Textos de i18n cargados correctamente.");
               } else {
@@ -306,6 +310,8 @@ sap.ui.define(
                   key: "Reversión Simple",
                   text: "Error i18n: Reversion Simple...",
                 },
+                { key: "Supertrend", text: "Error i18n: Supertrend" },
+                { key: "IronCondor", text: "Error i18n: Iron Condor" },
               ]);
             }
           } else {
@@ -317,6 +323,7 @@ sap.ui.define(
               { key: "MACrossover", text: "No i18n: Cruce Medias..." },
               { key: "Reversión Simple", text: "No i18n: Reversion Simple..." },
               { key: "Supertrend", text: "No i18n: Supertrend" },
+              { key: "IronCondor", text: "No i18n: Iron Condor" },
             ]);
           }
 

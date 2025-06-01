@@ -5,7 +5,8 @@ const {
   reversionSimple,
   SimulateMACrossover,
   getAllSimulations,
-  getSimulationById
+  getSimulationById,
+  SimulateIronCondor
 } = require("../services/inv-simulation-service");
 
 class InversionsRoute extends cds.ApplicationService {
@@ -39,6 +40,8 @@ class InversionsRoute extends cds.ApplicationService {
             return await simulateSupertrend(body);
           case "macrossover":
             return await SimulateMACrossover(body);
+          case "ironcondor": // Simulacion de Iron Condor
+            return await SimulateIronCondor(body);
           default:
             throw new Error(`Estrategia no reconocida: ${strategy}`);
         }
