@@ -18,8 +18,9 @@ async function GetAllUsers(req) {
             filter.DEPARTMENT = department;
         }
 
+        // Traer todos los usuarios sin excluir el campo PASSWORD
         const users = await Users.find(filter)
-            .select('-PASSWORD -DETAIL_ROW.DETAIL_ROW_REG')
+            .select('-DETAIL_ROW.DETAIL_ROW_REG')  // Puedes seguir excluyendo registros detallados si no los necesitas
             .lean();
 
         return users;
@@ -28,6 +29,7 @@ async function GetAllUsers(req) {
         throw new Error(`Error al obtener usuarios: ${error.message}`);
     }
 }
+
 
 
 // Función para obtener un usuario por ID

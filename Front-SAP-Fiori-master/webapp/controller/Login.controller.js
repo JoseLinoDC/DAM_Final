@@ -16,52 +16,65 @@ sap.ui.define([
 
     },
 
-    onLoginPress: async function () {
-      const oLogin = this.getView().getModel("loginModel").getData();
-      try {
-        // const response = await fetch("http://localhost:3333/api/users/getallusers", {
-        //   method: "GET"
-        // });
+   onLoginPress: async function () {
+  const oLogin = this.getView().getModel("loginModel").getData();
+  try {
+    // Traer todos los usuarios desde la API
+    const response = await fetch("http://localhost:3333/api/security/users/getAllUsers", {
+      method: "GET"
+    });
 
-        // const result = await response.json();
-        // const userList = Array.isArray(result.value) ? result.value : [];
+    if (!response.ok) {
+      throw new Error(`Error en la respuesta del servidor: ${response.status}`);
+    }
 
-        // console.log("email:", oLogin.email);
-        // console.log("contra::", oLogin.password);
+    const result = await response.json();
+    const userList = Array.isArray(result.value) ? result.value : [];
 
-        // //  Búsqueda por EMAIL y PASSWORD reales
-        // const user = userList.find(u =>
-        //   (u.EMAIL || "admin").trim().toLowerCase() === oLogin.email.trim().toLowerCase() &&
-        //   (u.PASSWORD || "admin").trim() === oLogin.password.trim()
-        // );
+    console.log("Email ingresado:", oLogin.email);
+    console.log("Contraseña ingresada:", oLogin.password);
 
-        // if (!user) {
-        //   MessageToast.show("Correo o contraseña incorrectos");
-        //   return;
-        // }
+    // Limpiar y validar inputs
+    const inputEmail = (oLogin.email || "").trim().toLowerCase();
+    const inputPassword = (oLogin.password || "").trim();
 
-        // const first = user.FIRSTNAME || "";
-        // const last = user.LASTNAME || "";
-        // user.initials = first && last
-        //   ? first.charAt(0).toUpperCase() + last.charAt(0).toUpperCase()
-        //   : "US";
+    if (!inputEmail || !inputPassword) {
+      MessageToast.show("Por favor ingresa correo y contraseña.");
+      return;
+    }
 
+    // Buscar coincidencia exacta de email y contraseña
+    const user = userList.find(u =>
+      (u.EMAIL || "").trim().toLowerCase() === inputEmail &&
+      (u.PASSWORD || "").trim() === inputPassword
+    );
 
-        // Guarda el usuario autenticado en appView
-        const system = "SYSTEM";
-        const oAppModel = this.getOwnerComponent().getModel("appView");
-        oAppModel.setProperty("/isLoggedIn", true);
-        oAppModel.setProperty("/currentUser", system);
+    if (!user) {
+      MessageToast.show("Correo o contraseña incorrectos");
+      return;
+    }
 
+    // Crear iniciales del usuario (opcional)
+    const first = (user.FIRSTNAME || "").trim();
+    const last = (user.LASTNAME || "").trim();
+    user.initials = first && last
+      ? first.charAt(0).toUpperCase() + last.charAt(0).toUpperCase()
+      : "US";
 
-        // Navega a la vista principal
-        this.getOwnerComponent().getRouter().navTo("RouteMain");
+    // Guardar usuario autenticado en modelo appView
+    const oAppModel = this.getOwnerComponent().getModel("appView");
+    oAppModel.setProperty("/isLoggedIn", true);
+    oAppModel.setProperty("/currentUser", user);
 
-      } catch (error) {
-        console.error(" Error al autenticar:", error);
-        MessageToast.show("Error al conectar con la API");
-      }
-    } ,
+    // Redirigir a la vista principal
+    this.getOwnerComponent().getRouter().navTo("RouteMain");
+
+  } catch (error) {
+    console.error("Error al autenticar:", error);
+    MessageToast.show("Error al conectar con la API");
+  }
+},
+
 
       //Funcion para el ojito
     onVerContraseña: function () {
