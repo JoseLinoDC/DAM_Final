@@ -24,6 +24,10 @@ service ValuesRoute @(path:'/api/security/values') {
     @path: 'view/:companyid'
     function getCompanyById(companyid: String) returns array of values;
 
+    @Core.Description: 'Obtener departamentos por sucursal'
+    @path: 'getBranchesWithDepartments'
+    function getBranchesWithDepartments(companyid: String) returns array of values;
+
     @Core.Description: 'Crear nuevo valor'
     @path: 'view'
     action view(value: values)         returns values;

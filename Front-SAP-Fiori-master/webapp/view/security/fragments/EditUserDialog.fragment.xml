@@ -1,4 +1,7 @@
-<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+>
     <Dialog
         id="EditUserDialog"
         title="Editar Usuario"
@@ -8,42 +11,74 @@
         draggable="true"
         resizable="true"
     >
-        <VBox id="EditUserDialogVbox" class="sapUiSmallMargin">
-            <Input id="inputEditUserId" value="{editUser>/USERID}" editable="false" placeholder="ID de Usuario"/>
+        <VBox
+            id="EditUserDialogVbox"
+            class="sapUiSmallMargin"
+        >
+            <Input
+                id="inputEditUserId"
+                value="{editUser>/USERID}"
+                editable="false"
+                placeholder="ID de Usuario"
+            />
 
             <!-- Contraseña -->
-            <Input id="inputEditUserPassword" value="{editUser>/PASSWORD}" type="Password" placeholder="Contraseña"/>
+            <Input
+                id="inputEditUserPassword"
+                value="{editUser>/PASSWORD}"
+                type="Password"
+                placeholder="Contraseña"
+            />
 
             <!-- Alias -->
-            <Input id="inputEditUserAlias" value="{editUser>/ALIAS}" placeholder="Alias"/>
+            <Input
+                id="inputEditUserAlias"
+                value="{editUser>/ALIAS}"
+                placeholder="Alias"
+            />
 
             <!-- Primer Nombre -->
-            <Input id="inputEditUserFirstName" value="{editUser>/FIRSTNAME}" placeholder="Primer Nombre"/>
+            <Input
+                id="inputEditUserFirstName"
+                value="{editUser>/FIRSTNAME}"
+                placeholder="Primer Nombre"
+            />
 
             <!-- Apellido -->
-            <Input id="inputEditUserLastName" value="{editUser>/LASTNAME}" placeholder="Apellido"/>
+            <Input
+                id="inputEditUserLastName"
+                value="{editUser>/LASTNAME}"
+                placeholder="Apellido"
+            />
 
             <!-- ID de Empleado -->
-            <Input id="inputEditEmployeeId" value="{editUser>/EMPLOYEEID}" placeholder="ID de Empleado"/>
+            <Input
+                id="inputEditEmployeeId"
+                value="{editUser>/EMPLOYEEID}"
+                placeholder="ID de Empleado"
+            />
 
             <!-- Extensión -->
-            <Input id="inputEditExtension" value="{editUser>/EXTENSION}" placeholder="Extensión"/>
+            <Input
+                id="inputEditExtension"
+                value="{editUser>/EXTENSION}"
+                placeholder="Extensión"
+            />
 
-<<<<<<< Updated upstream
-            <Input id="inputEditUsername" value="{editUser>/USERNAME}" placeholder="Nombre Completo"/>
-=======
             <!-- <Input
                 id="inputEditUsername"
                 value="{editUser>/USERNAME}"
                 placeholder="Nombre Completo"
             /> -->
->>>>>>> Stashed changes
 
-            <Input id="inputEditUserPhoneNumber" value="{editUser>/PHONENUMBER}" type="Number" placeholder="Número telefónico"/>
+            <Input
+                id="inputEditUserPhoneNumber"
+                value="{editUser>/PHONENUMBER}"
+                type="Text"
+                placeholder="Número telefónico"
+                liveChange=".onPhoneNumberLiveChange"
+            />
 
-<<<<<<< Updated upstream
-            <Input id="inputEditUserEmail" value="{editUser>/EMAIL}" type="Email" placeholder="Correo Electrónico"/>
-=======
             <HBox
                 id="emailContainer2"
                 alignItems="Center"
@@ -65,30 +100,28 @@
                     liveChange=".onEmailPartChange"
                 />
             </HBox>
->>>>>>> Stashed changes
 
-            <DatePicker id="inputEditUserBirthdayDate" valueFormat="yyyy-MM-dd" displayFormat="dd.MM.yyyy" value="{editUser>/BIRTHDAYDATE}" placeholder="Fecha de nacimiento"/>
+            <DatePicker
+                id="inputEditUserBirthdayDate"
+                valueFormat="yyyy-MM-dd"
+                displayFormat="dd.MM.yyyy"
+                value="{editUser>/BIRTHDAYDATE}"
+                placeholder="Fecha de nacimiento"
+            />
 
             <!-- URL del Avatar -->
-            <Input id="inputEditUserAvatar" value="{editUser>/AVATAR}" placeholder="URL del Avatar"/>
+            <Input
+                id="inputEditUserAvatar"
+                value="{editUser>/AVATAR}"
+                placeholder="URL del Avatar"
+            />
 
-            <ComboBox id="comboBoxEditCompanies" 
-                selectedKey="{editUser>/COMPANYID}" 
-                items="{companiesModel>/value}" 
-                placeholder="Compañía"
-                selectionChange="onEditCompanySelected">
-                <core:Item key="{companiesModel>VALUEID}" text="{companiesModel>VALUE}" />
-            </ComboBox>
-
-<<<<<<< Updated upstream
-            <ComboBox id="comboBoxEditCedis" 
-=======
             <ComboBox
-                id="comboEditSucursales"
+                id="comboBoxEditCompanies"
                 items="{companiesModel>/value}"
-                selectedKey="{newUser>/COMPANYID}"
-                selectionChange=".onSucursalesSelected"
-                placeholder="Sucursal"
+                selectedKey="{editUser>/COMPANYID}"
+                selectionChange=".onEditCompanySelected"
+                placeholder="Compañía"
             >
                 <core:Item
                     key="{companiesModel>VALUEID}"
@@ -97,43 +130,110 @@
             </ComboBox>
 
             <ComboBox
+                id="comboEditSucursales"
+                items="{sucursalesModel>/value}"
+                selectedKey="{editUser>/CEDIID}"
+                selectionChange=".onEditSucursalSelected"
+                placeholder="Sucursal"
+                enabled="{= !!${editUser>/COMPANYID} }"
+            >
+                <core:Item
+                    key="{sucursalesModel>VALUEID}"
+                    text="{sucursalesModel>VALUE}"
+                />
+            </ComboBox>
+
+            <ComboBox
                 id="comboBoxEditCedis"
->>>>>>> Stashed changes
-                selectedKey="{editUser>/DEPARTMENT_ID}"
-                items="{
-                    path: 'deptosModel>/value',
-                    templateShareable: false
-                }"
-                placeholder="Departamento">
-                <core:Item key="{deptosModel>VALUEID}" text="{deptosModel>VALUE}" />
+                items="{deptosModel>/value}"
+                selectedKey="{editUser>/DEPARTMENT}"
+                selectionChange=".onEditCediSelected"
+                placeholder="Departamento"
+                enabled="{= !!${editUser>/CEDIID} }"
+            >
+                <core:Item
+                    key="{deptosModel>VALUEID}"
+                    text="{deptosModel>VALUE}"
+                />
             </ComboBox>
 
-            <ComboBox id="comboBoxEditRoles" items="{rolesModel>/roles}" placeholder="Selecciona un Rol" selectionChange=".onEditRoleSelected">
-                <core:Item key="{rolesModel>ROLEID}" text="{rolesModel>ROLENAME}" />
+            <ComboBox
+                id="comboBoxEditRoles"
+                items="{rolesModel>/roles}"
+                placeholder="Selecciona un Rol"
+                selectionChange=".onEditRoleSelected"
+            >
+                <core:Item
+                    key="{rolesModel>ROLEID}"
+                    text="{rolesModel>ROLENAME}"
+                />
             </ComboBox>
 
-            <VBox id="selectedEditRolesVBox" class="sapUiSmallMarginTop">
+            <VBox
+                id="selectedEditRolesVBox"
+                class="sapUiSmallMarginTop"
+            >
                 <!--VBOx donde va añadiendo los roles -->
             </VBox>
 
             <!-- Dirección -->
-            <Title text="Dirección" level="H4" />
-            <Input id="inputEditStreetUser" value="{editUser>/STREET}" placeholder="Calle"/>
-            <Input id="inputEditPostalCodeUser" value="{editUser>/POSTALCODE}" placeholder="Código Postal"/>
-            <Input id="inputEditCityUser" value="{editUser>/CITY}" placeholder="Ciudad"/>
-            <Input id="inputEditRegionUser" value="{editUser>/REGION}" placeholder="Región"/>
-            <Input id="inputEditStateUser" value="{editUser>/STATE}" placeholder="Estado"/>
-            <Input id="inputEditCountryUser" value="{editUser>/COUNTRY}" placeholder="País"/>
+            <Title
+                text="Dirección"
+                level="H4"
+            />
+            <Input
+                id="inputEditStreetUser"
+                value="{editUser>/STREET}"
+                placeholder="Calle"
+            />
+            <Input
+                id="inputEditPostalCodeUser"
+                value="{editUser>/POSTALCODE}"
+                placeholder="Código Postal"
+            />
+            <Input
+                id="inputEditCityUser"
+                value="{editUser>/CITY}"
+                placeholder="Ciudad"
+            />
+            <Input
+                id="inputEditRegionUser"
+                value="{editUser>/REGION}"
+                placeholder="Región"
+            />
+            <Input
+                id="inputEditStateUser"
+                value="{editUser>/STATE}"
+                placeholder="Estado"
+            />
+            <Input
+                id="inputEditCountryUser"
+                value="{editUser>/COUNTRY}"
+                placeholder="País"
+            />
 
-            <Input id="inputEditUserFunction" value="{editUser>/FUNCTION}" placeholder="Función que ejerce"/>
+            <Input
+                id="inputEditUserFunction"
+                value="{editUser>/FUNCTION}"
+                placeholder="Función que ejerce"
+            />
         </VBox>
 
         <beginButton>
-            <Button id="EditUser" text="Guardar" type="Emphasized" press="onEditSaveUser" />
+            <Button
+                id="EditUser"
+                text="Guardar"
+                type="Emphasized"
+                press="onEditSaveUser"
+            />
         </beginButton>
 
         <endButton>
-            <Button id="CancelEditUser" text="Cancelar" press="onEditCancelUser" />
+            <Button
+                id="CancelEditUser"
+                text="Cancelar"
+                press="onEditCancelUser"
+            />
         </endButton>
     </Dialog>
 </core:FragmentDefinition>

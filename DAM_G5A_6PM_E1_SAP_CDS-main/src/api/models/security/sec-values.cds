@@ -5,10 +5,10 @@ namespace sec;
 
 entity Values {
   key VALUEID     : String(50);
-      COMPANYID   : String(50);   // opcional por defecto
+      COMPANYID   : String(50);  
       VALUE       : String(100);
       ALIAS       : String(10);
-      SEQUENCE    : Integer;      // opcional por defecto
+      SEQUENCE    : Integer;     
       IMAGE       : String(255);
       DESCRIPTION : String(200);
       VALUEPAID   : String(50);

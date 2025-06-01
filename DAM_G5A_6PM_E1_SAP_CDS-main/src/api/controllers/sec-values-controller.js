@@ -1,18 +1,32 @@
 // src/api/controllers/sec-values-controller.js
 const cds = require('@sap/cds');
 const {
-  GetAllValues, GetValueById, GetLabelById, GetCompanyById,
-  view, UpdateValue, DeactivateValue, ActivateValue, deleteview
+  GetAllValues, 
+  GetValueById, 
+  GetLabelById, 
+  GetCompanyById,
+  GetBranchesWithDepartments,
+  view, 
+  UpdateValue, 
+  DeactivateValue, 
+  ActivateValue, 
+  deleteview
 } = require('../services/sec-values-service');
 
 class SecurityValuesController extends cds.ApplicationService {
   async init() {
     this.on('getAllValues',    req => GetAllValues(req));
+    
     this.on('getValueById',    req => GetValueById(req));
+    
     this.on('getLabelById',    req => GetLabelById(req));
+    
     this.on('getCompanyById',  req => GetCompanyById(req));
 
+    this.on('getBranchesWithDepartments', req => GetBranchesWithDepartments(req));
+
     this.on('view',            req => view(req));
+    
     this.on('updateValue',     req => UpdateValue(req));
 
     this.on('deactivateValue', async (req) => {

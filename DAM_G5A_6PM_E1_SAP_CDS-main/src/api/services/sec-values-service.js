@@ -55,10 +55,43 @@ async function GetCompanyById(req) {
   }
 }
 
+async function GetBranchesWithDepartments(req) {
+  try {
+    const { companyid } = req.req.query;
+    if (!companyid) throw new Error('Falta el parámetro companyid');
+
+    // Buscar sucursales
+    const sucursales = await Values.find({
+      COMPANYID: companyid,
+      LABELID: "IdSucursales",
+      'DETAIL_ROW.DELETED': false
+    }).lean();
+
+    // Para cada sucursal, buscar sus departamentos
+    for (const sucursal of sucursales) {
+      const valuePaid = `IdSucursales-${sucursal.VALUEID}`; // <-- Aquí el fix
+      const Departamentos = await Values.find({
+        COMPANYID: companyid,
+        LABELID: "IdCedis",
+        VALUEPAID: valuePaid,
+        'DETAIL_ROW.DELETED': false
+      }).lean();
+      sucursal.Departamentos = Departamentos;
+    }
+
+    return sucursales;
+  } catch (e) {
+    throw new Error(`Error al buscar sucursales y departamentos: ${e.message}`);
+  }
+}
+
+
 async function view(req) {
   try {
     const { value } = req.data;
     if (!value || !value.VALUEID) throw new Error('Datos de valor incompletos');
+
+    if (!value.VALUEPAID) throw new Error('El parámetro "VALUEPAID" (sucursal) es requerido');
 
     const existing = await Values.findOne({ VALUEID: value.VALUEID });
     if (existing) throw new Error('El VALUEID ya está registrado');
@@ -139,6 +172,14 @@ async function deleteview(req) {
 }
 
 module.exports = {
-  GetAllValues, GetValueById, GetLabelById, GetCompanyById,
-  view, UpdateValue, DeactivateValue, ActivateValue, deleteview
+  GetAllValues,
+  GetValueById,
+  GetLabelById,
+  GetCompanyById,
+  GetBranchesWithDepartments,
+  view,
+  UpdateValue,
+  DeactivateValue,
+  ActivateValue,
+  deleteview
 };

@@ -38,6 +38,7 @@ sap.ui.define([
                     PHONENUMBER: userData.PHONENUMBER,
                     BIRTHDAYDATE: userData.BIRTHDAYDATE ? this.formatDateToString(userData.BIRTHDAYDATE) : null,
                     AVATAR: userData.AVATAR,
+                    CEDIID: userData.CEDIID,
                     COMPANYID: userData.COMPANYID,
                     COMPANYNAME: userData.COMPANYNAME,
                     DEPARTMENT: userData.DEPARTMENT,
@@ -155,6 +156,19 @@ sap.ui.define([
                 MessageBox.error("El correo electrónico no es válido.");
                 return;
             }
+
+            const aDeptos = oView.getModel("deptosModel").getData().value || [];
+            const oSelectedDepto = aDeptos.find(dept => dept.VALUEID === oNewUser.DEPARTMENT);
+
+            if (oSelectedDepto) {
+                oNewUser.DEPARTMENT = oSelectedDepto.VALUEID;
+                oNewUser.DEPARTMENTNAME = oSelectedDepto.VALUE;
+            } else {
+                oNewUser.DEPARTMENT = "";
+                oNewUser.DEPARTMENTNAME = "";
+            }
+
+            // ...antes de enviar el payload...
 
 
             // Lllama el payload
@@ -284,11 +298,14 @@ sap.ui.define([
 
                 // 4. Obtener el nombre del departamento basado en DEPARTMENT_ID
                 const aDeptos = oView.getModel("deptosModel").getData().value || [];
-                const oSelectedDepto = aDeptos.find(dept => dept.VALUEID === oUserData.DEPARTMENT_ID);
+                const oSelectedDepto = aDeptos.find(dept => dept.VALUEID === oUserData.DEPARTMENT_ID || dept.VALUEID === oUserData.DEPARTMENT);
 
-                if (!oSelectedDepto) {
-                    MessageBox.error("El departamento seleccionado no es válido");
-                    return;
+                if (oSelectedDepto) {
+                    oUserData.DEPARTMENT_ID = oSelectedDepto.VALUEID;
+                    oUserData.DEPARTMENT = oSelectedDepto.VALUE;
+                } else {
+                    oUserData.DEPARTMENT_ID = "";
+                    oUserData.DEPARTMENT = "";
                 }
 
                 // Asignar el nombre del departamento
@@ -899,24 +916,116 @@ sap.ui.define([
             const sCompanyId = oSelectedItem.getKey();
             const sCompanyName = oSelectedItem.getText();
 
-            // 1. Limpiar ComboBox de departamentos
-            const oDeptosModel = new sap.ui.model.json.JSONModel({ value: [] });
-            oView.setModel(oDeptosModel, "deptosModel");
-
-            // 2. Limpiar selección visual de departamentos
-            const oCedisComboBox = oView.byId("comboBoxCedis");
-            // oCedisComboBox.setSelectedKey(null);
-            oCedisComboBox.setValue("");
-
-            // 3. Actualizar el modelo del nuevo usuario
+            // Actualizar el modelo del nuevo usuario
             const oUserModel = oView.getModel("newUser");
             oUserModel.setProperty("/COMPANYID", sCompanyId);
             oUserModel.setProperty("/COMPANYNAME", sCompanyName);
             oUserModel.setProperty("/CEDIID", "");
             oUserModel.setProperty("/CEDINAME", "");
+            oUserModel.setProperty("/DEPARTMENT", "");
 
-            // 4. Llamar a la función para cargar departamentos
-            this.loadDeptos(sCompanyId);
+            // Limpiar modelos de sucursales y departamentos
+            oView.setModel(new sap.ui.model.json.JSONModel({ value: [] }), "sucursalesModel");
+            oView.setModel(new sap.ui.model.json.JSONModel({ value: [] }), "deptosModel");
+
+            // Limpiar selección visual
+            const oSucursalCombo = oView.byId("comboBoxSucursales");
+            if (oSucursalCombo) oSucursalCombo.setSelectedKey(null);
+
+            const oDeptoCombo = oView.byId("comboBoxCedis");
+            if (oDeptoCombo) oDeptoCombo.setSelectedKey(null);
+
+            // Cargar sucursales de la compañía seleccionada
+            this.loadSucursales(sCompanyId);
+        },
+        // Método para cargar sucursales
+        loadSucursales: function (companyId) {
+            if (!companyId) return Promise.resolve([]);
+
+            return fetch("env.json")
+                .then(res => res.json())
+                .then(env => {
+                    var url = env.API_VALUES_URL_BASE + "getBranchesWithDepartments?companyid=" + encodeURIComponent(companyId);
+                    return fetch(url);
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const sucursales = data.value.map(sucursal => ({
+                        VALUEID: sucursal.VALUEID,
+                        VALUE: sucursal.VALUE,
+                        ALIAS: sucursal.ALIAS,
+                        DESCRIPTION: sucursal.DESCRIPTION,
+                        Departamentos: sucursal.Departamentos || sucursal.departamentos || []
+                    }));
+
+                    console.log("Sucursales cargadas:", sucursales);
+
+                    const oModel = new JSONModel({ value: sucursales });
+                    this.getView().setModel(oModel, "sucursalesModel");
+                    return sucursales; // Devolver sucursales
+                })
+                .catch(err => {
+                    MessageToast.show("Error al cargar sucursales: " + err.message);
+                    console.error("Error loading branches:", err);
+                    return [];
+                });
+        },
+
+        // Método cuando se selecciona una sucursal
+        onSucursalSelected: function (oEvent) {
+            const oComboBox = oEvent.getSource();
+            const sSucursalId = oComboBox.getSelectedKey();
+            const oView = this.getView();
+
+            // Guardar la sucursal seleccionada en el modelo del usuario
+            const oUserModel = oView.getModel("newUser");
+            oUserModel.setProperty("/CEDIID", sSucursalId);
+            oUserModel.setProperty("/DEPARTMENT", ""); // Limpiar departamento
+
+            // Obtener el nombre de la sucursal seleccionada
+            const sucursales = oView.getModel("sucursalesModel").getProperty("/value") || [];
+            const sucursalSeleccionada = sucursales.find(s => s.VALUEID === sSucursalId);
+
+
+            if (sucursalSeleccionada) {
+                oUserModel.setProperty("/CEDINAME", sucursalSeleccionada.VALUE);
+
+                // Cargar departamentos de la sucursal seleccionada
+                const oDeptosModel = new sap.ui.model.json.JSONModel({
+                    value: sucursalSeleccionada.Departamentos.map(depto => ({
+                        VALUEID: depto.VALUEID,
+                        VALUE: depto.VALUE
+                    }))
+                });
+
+                oView.setModel(oDeptosModel, "deptosModel");
+            } else {
+                // Si no hay sucursal, limpiar departamentos
+                oView.setModel(new sap.ui.model.json.JSONModel({ value: [] }), "deptosModel");
+            }
+
+            // Limpiar selección visual del departamento
+            const oDeptoCombo = oView.byId("comboBoxCedis");
+            if (oDeptoCombo) oDeptoCombo.setSelectedKey(null);
+        },
+
+        // Método cuando se selecciona un departamento
+        onCediSelected: function (oEvent) {
+            const oComboBox = oEvent.getSource();
+            const sDeptoId = oComboBox.getSelectedKey();
+            const oView = this.getView();
+
+            // Guardar el departamento seleccionado en el modelo del usuario
+            const oUserModel = oView.getModel("newUser");
+            oUserModel.setProperty("/DEPARTMENT", sDeptoId);
+
+            // Obtener el nombre del departamento seleccionado
+            const Departamentos = oView.getModel("deptosModel").getProperty("/value") || [];
+            const deptoSeleccionado = Departamentos.find(d => d.VALUEID === sDeptoId);
+
+            if (deptoSeleccionado) {
+                oUserModel.setProperty("/DEPARTMENTNAME", deptoSeleccionado.VALUE);
+            }
         },
 
         formatDateToString: function (date) {
@@ -1017,16 +1126,15 @@ sap.ui.define([
 
                 const oUserData = await userResponse.json();
 
+                console.log("Datos del usuario para editar:", oUserData);
                 // 3. Parsear fecha de nacimiento
                 let parsedBirthdayDate = this._parseDateString(oUserData.BIRTHDAYDATE);
-                if (!parsedBirthdayDate || Object.prototype.toString.call(parsedBirthdayDate) !== "[object Date]") {
-                    parsedBirthdayDate = null;
-                }
+
 
                 // 4. Crear modelo para el formulario de edición
                 const oEditModel = new JSONModel({
                     USERID: oUserData.USERID,
-                    PASSWORD: "******", // Mostrar encriptado
+                    PASSWORD: "******",
                     ALIAS: oUserData.ALIAS || "",
                     FIRSTNAME: oUserData.FIRSTNAME || "",
                     LASTNAME: oUserData.LASTNAME || "",
@@ -1039,8 +1147,10 @@ sap.ui.define([
                     AVATAR: oUserData.AVATAR || "",
                     COMPANYID: oUserData.COMPANYID || "",
                     COMPANYNAME: oUserData.COMPANYNAME || "",
+                    CEDIID: oUserData.CEDIID || "",
+                    CEDINAME: oUserData.CEDINAME || "",
                     DEPARTMENT: oUserData.DEPARTMENT || "",
-                    DEPARTMENT_ID: "",
+                    DEPARTMENT_ID: oUserData.DEPARTMENT_ID || oUserData.DEPARTMENT || "",
                     FUNCTION: oUserData.FUNCTION || "",
                     STREET: oUserData.STREET || "",
                     POSTALCODE: oUserData.POSTALCODE || "",
@@ -1051,67 +1161,95 @@ sap.ui.define([
                     selectedRoles: oUserData.ROLES || []
                 });
 
+                //Modelo de editar usuario cargado
                 oView.setModel(oEditModel, "editUser");
 
-
+                // Procesar email
                 const email = oEditModel.getProperty("/EMAIL") || "";
                 if (email.includes("@")) {
                     const [user, domain] = email.split("@");
                     oEditModel.setProperty("/EMAIL_USER", user);
                     oEditModel.setProperty("/EMAIL_DOMAIN", domain);
-                } else {
-                    oEditModel.setProperty("/EMAIL_USER", email);
-                    oEditModel.setProperty("/EMAIL_DOMAIN", "");
                 }
 
                 // 5. Cargar combo de compañías
                 await this.loadCompanies();
 
-                // 6. Si tenemos COMPANYID, cargar los departamentos
+                // 6. Si tenemos COMPANYID, cargar las sucursales y departamentos
                 if (oUserData.COMPANYID) {
-                    // Cargar departamentos de la compañía
-                    const sDeptUrl = `${env.API_VALUES_URL_BASE}getCompanyById?companyid=${encodeURIComponent(oUserData.COMPANYID)}`;
-                    const deptResponse = await fetch(sDeptUrl);
-                    const oDeptData = await deptResponse.json();
+                    // Cargar sucursales de la compañía
+                    await this.loadSucursales(oUserData.COMPANYID);
 
-                    if (oDeptData.value) {
-                        // Crear modelo de departamentos
-                        const oDeptModel = new JSONModel({
-                            value: oDeptData.value
-                        });
-                        oView.setModel(oDeptModel, "deptosModel");
+                    // Si el usuario tiene sucursal asignada, cargar sus departamentos
+                    if (oUserData.CEDIID) {
+                        const oSucursalesModel = oView.getModel("sucursalesModel");
+                        if (oSucursalesModel) {
+                            const sucursales = oSucursalesModel.getProperty("/value") || [];
+                            const sucursal = sucursales.find(s => s.VALUEID === oUserData.CEDIID);
 
-                        // Buscar el departamento que coincide con el nombre del usuario
-                        const foundDept = oDeptData.value.find(dept =>
-                            dept.VALUE === oUserData.DEPARTMENT
-                        );
+                            if (sucursal) {
+                                const Departamentos = sucursal.Departamentos || [];
+                                const oDeptosModel = new JSONModel({
+                                    value: Departamentos.map(depto => ({
+                                        VALUEID: depto.VALUEID,
+                                        VALUE: depto.VALUE,
+                                        ALIAS: depto.ALIAS,
+                                        DESCRIPTION: depto.DESCRIPTION
+                                    }))
+                                });
+                                oView.setModel(oDeptosModel, "deptosModel");
 
-                        // Si encontramos el departamento, actualizar el modelo con el VALUEID
-                        if (foundDept) {
-                            oEditModel.setProperty("/DEPARTMENT_ID", foundDept.VALUEID);
-
-                            // Forzar la selección visual en el combobox
-                            const oDeptCombo = oView.byId("comboBoxEditCedis");
-                            if (oDeptCombo) {
-                                oDeptCombo.setSelectedKey(foundDept.VALUEID);
+                                // Seleccionar el departamento del usuario si existe
+                                // ...dentro de _loadUserDataForEdit, después de cargar los departamentos...
+                                if (oUserData.DEPARTMENT_ID || oUserData.DEPARTMENT) {
+                                    // Buscar por ID o por nombre
+                                    const deptoIdToSelect = oUserData.DEPARTMENT_ID || oUserData.DEPARTMENT;
+                                    // Buscar primero por VALUEID, si no existe, buscar por VALUE (nombre)
+                                    let deptoSeleccionado = Departamentos.find(
+                                        d => d.VALUEID === deptoIdToSelect
+                                    );
+                                    if (!deptoSeleccionado) {
+                                        deptoSeleccionado = Departamentos.find(
+                                            d => d.VALUE === oUserData.DEPARTMENT
+                                        );
+                                    }
+                                    if (deptoSeleccionado) {
+                                        const oDeptoCombo = oView.byId("comboBoxEditCedis");
+                                        if (oDeptoCombo) {
+                                            oDeptoCombo.setSelectedKey(deptoSeleccionado.VALUEID);
+                                        }
+                                        // Actualiza el modelo editUser con el VALUEID para que el binding funcione
+                                        oEditModel.setProperty("/DEPARTMENT", deptoSeleccionado.VALUEID);
+                                        oEditModel.setProperty("/DEPARTMENT_ID", deptoSeleccionado.VALUEID);
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // 7. Cargar roles
-                await this.loadRoles();
-
-                // 8. Mostrar roles seleccionados
-                this._updateSelectedRolesView(oUserData.ROLES || [], true);
-
-                // 9. Forzar la selección visual en los combobox
+                // 7. Establecer selecciones en los combobox
                 if (oUserData.COMPANYID) {
                     const oCompanyCombo = oView.byId("comboBoxEditCompanies");
-                    oCompanyCombo.setSelectedKey(oUserData.COMPANYID);
+                    if (oCompanyCombo) {
+                        oCompanyCombo.setSelectedKey(oUserData.COMPANYID);
+                    }
                 }
 
-                // 10. Establecer la función en el input
+                if (oUserData.CEDIID) {
+                    const oSucursalCombo = oView.byId("comboEditSucursales");
+                    if (oSucursalCombo) {
+                        oSucursalCombo.setSelectedKey(oUserData.CEDIID);
+                    }
+                }
+
+                // 8. Cargar roles
+                await this.loadRoles();
+
+                // 9. Mostrar roles seleccionados
+                this._updateSelectedRolesView(oUserData.ROLES || [], true);
+
+                // 10. Establecer la función
                 const oFunctionInput = oView.byId("inputEditUserFunction");
                 if (oUserData.FUNCTION) {
                     oFunctionInput.setValue(oUserData.FUNCTION);
@@ -1167,52 +1305,91 @@ sap.ui.define([
         },
 
 
-        onEditCompanySelected: async function (oEvent) {
+        onEditCompanySelected: function (oEvent) {
             const oSelectedItem = oEvent.getParameter("selectedItem");
             if (!oSelectedItem) return;
 
             const sCompanyId = oSelectedItem.getKey();
-            const sCompanyName = oSelectedItem.getText();
             const oView = this.getView();
             const oEditModel = oView.getModel("editUser");
 
-            // Actualizar el modelo
+            // Actualizar modelo
             oEditModel.setProperty("/COMPANYID", sCompanyId);
-            oEditModel.setProperty("/COMPANYNAME", sCompanyName);
-
+            oEditModel.setProperty("/COMPANYNAME", oSelectedItem.getText());
+            oEditModel.setProperty("/CEDIID", "");
             oEditModel.setProperty("/DEPARTMENT_ID", "");
             oEditModel.setProperty("/DEPARTMENT", "");
 
-            // Cargar los departamentos de la nueva compañía
-            try {
-                const envRes = await fetch("env.json");
-                const env = await envRes.json();
+            // Limpiar modelos de sucursales y departamentos
+            oView.setModel(new JSONModel({ value: [] }), "sucursalesModel");
+            oView.setModel(new JSONModel({ value: [] }), "deptosModel");
 
-                const sDeptUrl = `${env.API_VALUES_URL_BASE}getCompanyById?companyid=${encodeURIComponent(sCompanyId)}`;
-                const deptResponse = await fetch(sDeptUrl);
-                const oDeptData = await deptResponse.json();
-
-                if (oDeptData.value) {
-                    const oDeptModel = new JSONModel({
-                        value: oDeptData.value
-                    });
-                    oView.setModel(oDeptModel, "deptosModel");
-                }
-            } catch (error) {
-                console.error("Error al cargar departamentos:", error);
-                MessageToast.show("Error al cargar departamentos");
+            // Cargar sucursales después de limpiar
+            if (sCompanyId) {
+                this.loadSucursales(sCompanyId);
             }
         },
 
-<<<<<<< Updated upstream
-=======
+        // ...existing code...
+        onEditSucursalSelected: function (oEvent) {
+            const oComboBox = oEvent.getSource();
+            const sSucursalId = oComboBox.getSelectedKey();
+            const oView = this.getView();
+            const oEditModel = oView.getModel("editUser");
+            const oSucursalesModel = oView.getModel("sucursalesModel");
+
+            if (!sSucursalId || !oSucursalesModel) return;
+
+            // Guardar la sucursal seleccionada en el modelo del usuario
+            oEditModel.setProperty("/CEDIID", sSucursalId);
+            oEditModel.setProperty("/DEPARTMENT_ID", ""); // Limpiar departamento
+
+            // Obtener el nombre de la sucursal seleccionada
+            const sucursales = oSucursalesModel.getProperty("/value") || [];
+            const sucursalSeleccionada = sucursales.find(s => s.VALUEID === sSucursalId);
+
+            if (sucursalSeleccionada) {
+                oEditModel.setProperty("/CEDINAME", sucursalSeleccionada.VALUE);
+
+                // Cargar departamentos de la sucursal seleccionada
+                const oDeptosModel = new sap.ui.model.json.JSONModel({
+                    value: (sucursalSeleccionada.Departamentos || []).map(depto => ({
+                        VALUEID: depto.VALUEID,
+                        VALUE: depto.VALUE
+                    }))
+                });
+
+                oView.setModel(oDeptosModel, "deptosModel");
+            } else {
+                // Si no hay sucursal, limpiar departamentos
+                oView.setModel(new sap.ui.model.json.JSONModel({ value: [] }), "deptosModel");
+            }
+
+            // Limpiar selección visual del departamento
+            const oDeptoCombo = oView.byId("comboBoxEditCedis");
+            if (oDeptoCombo) oDeptoCombo.setSelectedKey(null);
+        },
+
+        onEditCediSelected: function (oEvent) {
+            const oComboBox = oEvent.getSource();
+            const sDeptoId = oComboBox.getSelectedKey();
+            const oView = this.getView();
+
+            const oEditModel = oView.getModel("editUser");
+            oEditModel.setProperty("/DEPARTMENT", sDeptoId);
+
+            // Opcional: actualizar nombre si quieres guardar el nombre del depto
+            const departamentos = oView.getModel("deptosModel").getProperty("/value") || [];
+            const deptoSeleccionado = departamentos.find(d => d.VALUEID === sDeptoId);
+            if (deptoSeleccionado) {
+                oEditModel.setProperty("/DEPARTMENTNAME", deptoSeleccionado.VALUE);
+            }
+        },
 
         onPhoneNumberLiveChange: function (oEvent) {
             let sValue = oEvent.getParameter("value") || "";
-            // Solo números
-            sValue = sValue.replace(/\D/g, "");
-            // Máximo 10 dígitos
-            sValue = sValue.substring(0, 10);
+            // Solo números, máximo 10 dígitos
+            sValue = sValue.replace(/\D/g, "").substring(0, 10);
 
             // Formato 311-247-9021
             let sFormatted = sValue;
@@ -1225,9 +1402,10 @@ sap.ui.define([
             // Detectar modelo (editUser o newUser)
             const oInput = oEvent.getSource();
             const oBinding = oInput.getBinding("value");
-            const sModelName = oBinding && oBinding.getModel().sName; // "editUser" o "newUser"
+            const sModelName = oBinding && oBinding.getModel().sName;
             const oModel = this.getView().getModel(sModelName);
 
+            // Actualizar el modelo y el input SIEMPRE con el valor formateado
             if (oModel) {
                 oModel.setProperty("/PHONENUMBER", sFormatted);
             }
@@ -1259,7 +1437,6 @@ sap.ui.define([
         },
 
 
->>>>>>> Stashed changes
     });
 
 
