@@ -5,24 +5,28 @@ require("dotenv").config(); //para usar el .env despues
 const API_KEY = "4NCHFPILY0107FYG";
 // const API_KEY = "HJ168GZFTJ5G77U5";
 
+// Simulación de Momentum
 async function SimulateMomentum(body) {
   // const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
+  // Validación de los parámetros del body
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
-
   console.log(body);
-  const numR = Math.floor(Math.random() * 1000).toString();
+
   //GENERAR ID pa' la estrategia
+  const numR = Math.floor(Math.random() * 1000).toString();
   const idStrategy = (symbol, usuario) => {
     const date = new Date();
     const timestamp = date.toISOString().slice(0, 10);
     const user = (usuario || "").toString()[0] || "U";
     return `${symbol}-${timestamp}-${user}-${numR}`;
   };
+
   //Datos Estaticos para la respuesta
   const SIMULATIONID = idStrategy(SYMBOL, USERID);
   const SIMULATIONNAME = "Estrategia de Momentum-" + numR;
   const STRATEGYID = "MOM";
   console.log(SIMULATIONID);
+
   // Validación del body.
   const missingParams = [];
   if (!SYMBOL) missingParams.push("SYMBOL");
@@ -36,6 +40,7 @@ async function SimulateMomentum(body) {
       message: `FALTAN PARÁMETROS REQUERIDOS: ${missingParams.join(", ")}.`,
     };
   }
+
   // ||||||| <---Usos de la API
   const APIURL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
   // const response = await axios.get(APIURL);
@@ -50,7 +55,7 @@ async function SimulateMomentum(body) {
       message: "Error al obtener datos del mercado: " + error.message,
     };
   }
-
+// Validar que la respuesta tenga datos
   const data = response.data["Time Series (Daily)"];
   if (!data) {
     return {
@@ -59,6 +64,7 @@ async function SimulateMomentum(body) {
     };
   }
 
+  // Validar que las fechas sean correctas
   const parsedData = Object.entries(data).map(([date, values]) => ({
     DATE: date,
     OPEN: parseFloat(values["1. open"]),
@@ -75,13 +81,13 @@ async function SimulateMomentum(body) {
       return itemdate >= startDate && itemdate <= endDate;
     });
   }
-
+  
   function calculateEMA(data, period, key = "CLOSE") {
     const k = 2 / (period + 1);
     let emaArray = [];
     let emaPrev =
       data.slice(0, period).reduce((sum, d) => sum + d[key], 0) / period; // SMA inicial
-
+    // Asegurarse de que haya suficientes datos para el periodo
     for (let i = 0; i < data.length; i++) {
       if (i < period - 1) {
         emaArray.push(null); // no hay suficiente data
@@ -96,26 +102,33 @@ async function SimulateMomentum(body) {
     return emaArray;
   }
 
+  // Función para calcular el RSI (Relative Strength Index)
   function calculateRSI(data, period, key = "CLOSE") {
-    let gains = [];
-    let losses = [];
-    let rsiArray = [];
+    // Implementación de variables para calcular el RSI
+    let gains = [];     // ganancias
+    let losses = [];    // pérdidas
+    let rsiArray = [];  // array para RSI
 
+    // Asegurarse de que haya suficientes datos para el periodo
     for (let i = 1; i < data.length; i++) {
       const change = data[i][key] - data[i - 1][key];
       gains.push(change > 0 ? change : 0);
       losses.push(change < 0 ? -change : 0);
     }
 
+    // Calcular el RSI
     let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
     let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
 
+    // Inicializar el array de RSI con nulls para los primeros periodos
     rsiArray = Array(period).fill(null); // Sin RSI para primeros periodos
 
+    // Calcular RSI para el resto de los datos
     for (let i = period; i < gains.length; i++) {
+      // Calcular el promedio de ganancias y pérdidas
       avgGain = (avgGain * (period - 1) + gains[i]) / period;
       avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
-
+      
       if (avgLoss === 0) {
         rsiArray.push(100);
       } else {
@@ -130,6 +143,7 @@ async function SimulateMomentum(body) {
     return rsiArray;
   }
 
+  // Función para calcular el ADX (Average Directional Index)
   function calculateADX(
     data,
     period,
@@ -143,6 +157,7 @@ async function SimulateMomentum(body) {
     let plusDM = [];
     let minusDM = [];
 
+    // Asegurarse de que haya suficientes datos para el periodo
     for (let i = 1; i < data.length; i++) {
       const high = data[i][keyHigh];
       const low = data[i][keyLow];
@@ -174,14 +189,17 @@ async function SimulateMomentum(body) {
       return smoothed;
     }
 
+    // Suavizar TR, +DM y -DM
     const smoothedTR = smooth(tr, period);
     const smoothedPlusDM = smooth(plusDM, period);
     const smoothedMinusDM = smooth(minusDM, period);
 
+    // Calcular +DI, -DI y DX
     let plusDI = [];
     let minusDI = [];
     let dx = [];
 
+    // Asegurarse de que haya suficientes datos para el periodo
     for (let i = period - 1; i < smoothedTR.length; i++) {
       plusDI[i] = (smoothedPlusDM[i] / smoothedTR[i]) * 100;
       minusDI[i] = (smoothedMinusDM[i] / smoothedTR[i]) * 100;
@@ -189,8 +207,8 @@ async function SimulateMomentum(body) {
         (Math.abs(plusDI[i] - minusDI[i]) / (plusDI[i] + minusDI[i])) * 100;
     }
 
+    // Calcular ADX
     let adx = [];
-    // Primer ADX es promedio de primeros periodos DX
     let initialADX =
       dx.slice(period, period * 2 - 1).reduce((a, b) => a + b, 0) / period;
     for (let i = 0; i < period * 2 - 1; i++) adx.push(null);
@@ -293,6 +311,7 @@ async function SimulateMomentum(body) {
   ) {
     const señales = [];
 
+    // Iterar sobre los indicadores filtrados para generar señales
     for (let i = 1; i < indicadoresFiltrados.length; i++) {
       const anterior = indicadoresFiltrados[i - 1];
       const actual = indicadoresFiltrados[i];
@@ -304,10 +323,12 @@ async function SimulateMomentum(body) {
       );
       if (!priceDia) continue;
 
+      // Validar que el precio del día actual exista
       const precio = priceDia.CLOSE;
       const volumenAnterior = historialpricesFiltrado[i - 1]?.VOLUME || 0;
       const volumenActual = priceDia.VOLUME;
 
+      // Validar que los indicadores tengan valores válidos
       const adxFuerte = actual.ADX > 25;
       const rsiModerado = actual.RSI > 55 && actual.RSI < 75;
       const rsiAlto = actual.RSI > 65;
@@ -322,6 +343,7 @@ async function SimulateMomentum(body) {
       const adxDebil = actual.ADX < 20;
 
       // 🟢 Señales BUY más detalladas
+      // Condiciones para BUY cuando hay cruce alcista
       if (cruceAlcista && rsiModerado && adxFuerte && volumenCreciente) {
         señales.push({
           DATE: actual.DATE,
@@ -331,6 +353,7 @@ async function SimulateMomentum(body) {
             "BUY: Cruce alcista confirmado con EMA corta sobre larga, RSI entre 55-75 indicando momentum saludable, ADX fuerte (>25) mostrando tendencia y volumen creciente.",
         });
       }
+      // Condiciones para BUY cuando hay cruce alcista y volumen significativo
       if (rsiAlto && adxFuerte && volumenSignificativo) {
         señales.push({
           DATE: actual.DATE,
@@ -340,6 +363,7 @@ async function SimulateMomentum(body) {
             "BUY: RSI alto (>65) sugiriendo fuerte momentum, ADX fuerte (>25) indicando tendencia clara, volumen >50% superior al día anterior.",
         });
       }
+      // Condiciones para BUY cuando hay cruce alcista, ADX fuerte y volumen creciente
       if (adxFuerte && cruceAlcista && volumenSignificativo && rsiAlto) {
         señales.push({
           DATE: actual.DATE,
@@ -362,6 +386,7 @@ async function SimulateMomentum(body) {
         { cond: volumenDebil, desc: "volumen <80% del día anterior" },
       ];
 
+      // Verificar si se cumplen al menos 3 condiciones para SELL
       const motivos = condicionesSell.filter((c) => c.cond).map((c) => c.desc);
       if (motivos.length >= 3) {
         señales.push({
@@ -372,6 +397,7 @@ async function SimulateMomentum(body) {
         });
       }
 
+      // Condiciones específicas para SELL
       if (actual.RSI < 40 && adxDebil && !cruceAlcista) {
         señales.push({
           DATE: actual.DATE,
@@ -381,6 +407,7 @@ async function SimulateMomentum(body) {
             "SELL: RSI muy bajo (<40) confirmando debilidad, ADX débil (<20) sin tendencia clara y sin cruce alcista.",
         });
       }
+      // Condiciones para SELL con cruce bajista y volumen debilitado
       if (cruceBajista && volumenDebil) {
         señales.push({
           DATE: actual.DATE,
@@ -407,6 +434,7 @@ async function SimulateMomentum(body) {
     let costoTotalComprado = 0;
     let gananciaReal = 0;
 
+    // Validar que haya señales
     for (const señal of señales) {
       const { DATE, TYPE, PRICE, REASONING } = señal;
 
@@ -432,6 +460,7 @@ async function SimulateMomentum(body) {
           });
         }
       } else if (TYPE === "sell") {
+        // Validar que haya lotes para vender
         let totalAcciones = lotes.reduce((sum, lote) => sum + lote.cantidad, 0);
         let accionesVendidas = 0;
         if (totalAcciones > 0) {
@@ -1733,18 +1762,22 @@ function calculateRSI2(data, period = 14) {
 
 //Simulacion IronCondor
 async function SimulateIronCondor(simulation) {
+  // Verifica que la simulación tenga los datos necesarios
   if (!simulation || typeof simulation !== "object") {
     throw new Error("Invalid or missing simulation data.");
   }
+  // Verifica que la simulación tenga los campos necesarios
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = simulation;
 
+  // Genera un ID único para la simulación
   const numR = Math.floor(Math.random() * 1000).toString();
   const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${
     USERID[0]
   }-${numR}`;
   const SIMULATIONNAME = `Iron Condor-${numR}`;
-  const STRATEGYID = "IC";
+  const STRATEGYID = "IC"; // ID de la estrategia Iron Condor
 
+  // Verifica que todos los campos necesarios estén presentes
   const missingParams = [];
   if (!SYMBOL) missingParams.push("SYMBOL");
   if (!STARTDATE || isNaN(new Date(STARTDATE))) missingParams.push("STARTDATE");
@@ -1755,15 +1788,18 @@ async function SimulateIronCondor(simulation) {
   if (!USERID) missingParams.push("USERID");
   if (!SPECS || !Array.isArray(SPECS)) missingParams.push("SPECS");
 
+  // Si faltan parámetros, devuelve un mensaje de error
   if (missingParams.length > 0) {
     return { message: `FALTAN PARÁMETROS: ${missingParams.join(", ")}.` };
   }
 
+  // Verifica que SPECS tenga los indicadores necesarios
   const specs = SPECS.reduce((acc, { INDICATOR, VALUE }) => {
     acc[INDICATOR.toUpperCase()] = Number(VALUE);
     return acc;
   }, {});
 
+  // Establece valores predeterminados para los indicadores
   const width = specs.WIDTH || 5;
   const premium = specs.PREMIUM || 2;
   const rsiPeriod = specs.RSI_PERIOD || 14;
@@ -1772,6 +1808,7 @@ async function SimulateIronCondor(simulation) {
   const volThreshold = specs.VOL_THRESHOLD || 100000;
   const expiryDays = specs.EXPIRY_DAYS || 5;
 
+  // Verifica que los valores de los indicadores sean válidos con la api Alpha Vantage
   const API_URL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
   let response;
   try {
@@ -1780,9 +1817,11 @@ async function SimulateIronCondor(simulation) {
     return { message: "Error fetching market data: " + error.message };
   }
 
+  // Verifica que la respuesta contenga los datos esperados
   const rawData = response.data["Time Series (Daily)"];
   if (!rawData) return { message: "Datos de mercado no disponibles." };
 
+  // Procesa los datos históricos y filtra por el rango de fechas
   const data = Object.entries(rawData)
     .map(([date, val]) => ({
       DATE: date,
@@ -1792,27 +1831,32 @@ async function SimulateIronCondor(simulation) {
       VOLUME: +val["5. volume"],
     }))
     .sort((a, b) => new Date(a.DATE) - new Date(b.DATE));
-
+  
+  // Filtra los datos por el rango de fechas especificado
   const inRangeData = data.filter(
     (d) => d.DATE >= STARTDATE && d.DATE <= ENDDATE
   );
   if (inRangeData.length === 0)
     return { message: "No hay datos en el rango especificado." };
 
+  // Calcula el RSI y crea un mapa de valores RSI por fecha
   const rsiData = calculateRSI2(data, rsiPeriod);
   const rsiMap = Object.fromEntries(rsiData.map((d) => [d.DATE, d.RSI]));
 
+  // Filtra los datos para obtener solo aquellos con RSI dentro del rango especificado
   let totalProfit = 0,
     wins = 0,
     losses = 0;
   const trades = [];
 
+  // Itera sobre los datos filtrados y simula las operaciones Iron Condor
   for (let i = 0; i < inRangeData.length - expiryDays; i++) {
     const day = inRangeData[i];
     const rsiVal = rsiMap[day.DATE];
     if (rsiVal === null || rsiVal < rsiMin || rsiVal > rsiMax) continue;
     if (day.VOLUME < volThreshold) continue;
 
+    // Calcula los precios de las opciones Iron Condor
     const price = day.CLOSE;
     const shortPut = price - width;
     const longPut = shortPut - width;
@@ -1821,12 +1865,14 @@ async function SimulateIronCondor(simulation) {
     const maxProfit = premium * 100;
     const maxLoss = width * 100 - maxProfit;
 
+    // Verifica si el precio de cierre al vencimiento está dentro del rango
     const expiryIndex =
       i + expiryDays < inRangeData.length
         ? i + expiryDays
         : inRangeData.length - 1;
     const expiryPrice = inRangeData[expiryIndex].CLOSE;
 
+    // Determina el resultado de la operación Iron Condor
     let tradeResult,
       outcome,
       reasoningExtra = "";
@@ -1845,9 +1891,12 @@ async function SimulateIronCondor(simulation) {
           : "Rompió resistencia superior.";
     }
 
+    // Registra la operación en el array de trades
     totalProfit += tradeResult;
 
     // SEÑALES ADICIONALES, REGLAS MÁS DETALLADAS
+
+    // Añade señales de venta si el RSI es muy alto
     if (rsiVal > 80) {
       trades.push({
         DATE: day.DATE,
@@ -1857,6 +1906,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de compra si el RSI es muy bajo
     if (rsiVal < 20) {
       trades.push({
         DATE: day.DATE,
@@ -1866,6 +1916,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de compra si el volumen es extremadamente alto
     if (day.VOLUME > volThreshold * 2) {
       trades.push({
         DATE: day.DATE,
@@ -1875,6 +1926,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de venta si el cierre está muy cerca del máximo o mínimo del día
     if (day.CLOSE > day.HIGH * 0.98) {
       trades.push({
         DATE: day.DATE,
@@ -1884,6 +1936,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de compra si el cierre está muy cerca del mínimo del día
     if (day.CLOSE < day.LOW * 1.02) {
       trades.push({
         DATE: day.DATE,
@@ -1893,6 +1946,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de neutralidad si el volumen es muy bajo
     if (day.VOLUME < volThreshold / 2) {
       trades.push({
         DATE: day.DATE,
@@ -1902,6 +1956,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de venta si el RSI está cerca del máximo o mínimo
     if (rsiVal >= rsiMax - 5 && day.VOLUME > volThreshold) {
       trades.push({
         DATE: day.DATE,
@@ -1911,6 +1966,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
+    // Añade señales de compra si el RSI está cerca del mínimo
     if (rsiVal <= rsiMin + 5 && day.VOLUME > volThreshold) {
       trades.push({
         DATE: day.DATE,
@@ -1920,7 +1976,7 @@ async function SimulateIronCondor(simulation) {
         SHARES: 0,
       });
     }
-
+    // Añade la operación Iron Condor al array de trades
     trades.push({
       DATE: day.DATE,
       TYPE: "IronCondor",
@@ -1930,43 +1986,10 @@ async function SimulateIronCondor(simulation) {
     });
   }
 
+  // Calcula el balance final y el porcentaje de retorno
   const FINAL_BALANCE = Number(AMOUNT) + totalProfit;
   const PERCENTAGE_RETURN =
     ((FINAL_BALANCE - Number(AMOUNT)) / Number(AMOUNT)) * 100;
-
-  // const simulacion = {
-  //   SIMULATIONID,
-  //   USERID,
-  //   STRATEGYID,
-  //   SIMULATIONNAME,
-  //   SYMBOL,
-  //   STARTDATE,
-  //   ENDDATE,
-  //   AMOUNT,
-  //   SPECS,
-  //   SIGNALS: trades,
-  //   SUMMARY: {
-  //     TOTAL_BOUGHT_UNITS: 0,
-  //     TOTAL_SOLD_UNITS: 0,
-  //     REMAINING_UNITS: 0,
-  //     FINAL_CASH: FINAL_BALANCE,
-  //     FINAL_VALUE: 0,
-  //     FINAL_BALANCE: FINAL_BALANCE,
-  //     REAL_PROFIT: totalProfit,
-  //     PERCENTAGE_RETURN: PERCENTAGE_RETURN,
-  //   },
-  // };
-  // try {
-  //   const nuevaSimulacion = new SimulationModel(simulacion);
-  //   await nuevaSimulacion.save();
-  //   console.log("Simulacion guardada en la base de datos.");
-  //   console.log(nuevaSimulacion);
-  // } catch (error) {
-  //   return {
-  //     status: 500,
-  //     message: error.message,
-  //   };
-  // }
 
   return {
     SIMULATIONID,
@@ -1996,12 +2019,14 @@ async function SimulateIronCondor(simulation) {
   Consultas para traer informacion de las simulaciones
 -----------------------------------------------------------------------------------------------------------*/
 
+// Formatea las fechas a "YYYY-MM-DD" para MongoDB
 function formatDateToYYYYMMDD(date) {
   if (!date) return null;
   const d = new Date(date);
   return d.toISOString().split("T")[0]; // yyyy-mm-dd
 }
 
+// Recorre recursivamente el objeto y formatea las fechas
 function recursivelyFormatDates(obj) {
   if (Array.isArray(obj)) {
     return obj.map(recursivelyFormatDates);
@@ -2024,6 +2049,7 @@ function recursivelyFormatDates(obj) {
   }
 }
 
+// Función para obtener todas las simulaciones
 async function getAllSimulations() {
   try {
     let simulation = await SimulationModel.find().lean();
@@ -2034,6 +2060,7 @@ async function getAllSimulations() {
   }
 }
 
+// Función para obtener una simulación por su ID
 async function getSimulationById(simulationId) {
   // Función para obtener una simulación por su ID
   try {
@@ -2049,6 +2076,7 @@ async function getSimulationById(simulationId) {
   }
 }
 
+// Función para eliminar simulaciones por sus IDs
 async function deleteSimulations(simulationIds) {
   try {
     const result = await SimulationModel.deleteMany({
