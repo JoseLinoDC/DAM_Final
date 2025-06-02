@@ -1,7 +1,8 @@
 const SimulationModel = require("../models/mongodb/simulations");
 const axios = require("axios");
 require("dotenv").config(); //para usar el .env despues
-const API_KEY = "7NONLRJ6ARKI0BA4";
+// const API_KEY = "7NONLRJ6ARKI0BA4";
+const API_KEY = "4NCHFPILY0107FYG"; 
 
 async function SimulateMomentum(req) {
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
@@ -1621,6 +1622,8 @@ async function SimulateMACrossover(body) {
   }
 }
 
+
+// Función para calcular el RSI (Relative Strength Index) con un enfoque optimizado IronCondor
 function calculateRSI2(data, period = 14) {
   const rsi = [];
   let gains = 0,
