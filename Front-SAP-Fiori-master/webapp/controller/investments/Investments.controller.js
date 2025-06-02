@@ -895,9 +895,8 @@ sap.ui.define(
           if (!Array.isArray(aData)) return [];
 
           return aData.map((oItem) => {
-            // Encuentra la señal correspondiente para esta fecha
             const signal =
-              aSignals.find((s) => {
+              (aSignals || []).find((s) => {
                 const signalDate = this._parseDate(s.DATE);
                 const itemDate = this._parseDate(oItem.DATE);
                 return (
@@ -908,7 +907,18 @@ sap.ui.define(
               }) || {};
 
             const dateObject = this._parseDate(oItem.DATE);
-            const indicators = this._extractIndicators(oItem.INDICATORS);
+
+            // 🔥 Extraer y mapear todos los indicadores dinámicos (RSI y más)
+            const dynamicIndicators = {};
+            if (Array.isArray(oItem.INDICATORS)) {
+              oItem.INDICATORS.forEach((ind) => {
+                if (ind.INDICATOR && ind.VALUE != null) {
+                  dynamicIndicators[ind.INDICATOR.toUpperCase()] = parseFloat(
+                    ind.VALUE
+                  );
+                }
+              });
+            }
 
             return {
               DATE_GRAPH: dateObject,
@@ -918,12 +928,15 @@ sap.ui.define(
               LOW: parseFloat(oItem.LOW) || 0,
               CLOSE: parseFloat(oItem.CLOSE) || 0,
               VOLUME: parseFloat(oItem.VOLUME) || 0,
-              ...indicators.values,
+              ...dynamicIndicators, // 🔥 Incluir todos los indicadores
               BUY_SIGNAL:
                 signal.TYPE === "buy" ? parseFloat(oItem.CLOSE) : null,
               SELL_SIGNAL:
                 signal.TYPE === "sell" ? parseFloat(oItem.CLOSE) : null,
-              INDICATORS_TEXT: indicators.text,
+              INDICATORS_TEXT:
+                Object.entries(dynamicIndicators)
+                  .map(([k, v]) => `${k}: ${v.toFixed(2)}`)
+                  .join(", ") || "N/A",
               SIGNALS: signal.TYPE
                 ? "ACCIÓN " + signal.TYPE.toUpperCase()
                 : "SIN ACCIÓN",
@@ -947,30 +960,32 @@ sap.ui.define(
         //Modifica el feed de medidas del gráfico según la estrategia seleccionada
         //para evitar estar cambiando el dataset y feeds cada vez que se cambia la estrategia
         _updateChartMeasuresFeed: function () {
-          // 🔥 Reconstruir el Dataset y los Feeds dinámicamente
           this._buildDynamicDataset();
 
-          // 🔥 Actualizar también el modelo "strategyAnalysisModel" con las nuevas medidas disponibles
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
           );
-          const oStrategyAnalysisModel = this.getView().getModel(
-            "strategyAnalysisModel"
-          );
-
           const aChartData =
             oStrategyResultModel.getProperty("/chart_data") || [];
+
+          let aAvailableFields = [];
           if (aChartData.length > 0) {
-            const aAvailableFields = Object.keys(aChartData[0]).filter(
-              (f) => f !== "DATE_GRAPH" && f !== "DATE"
+            const availableKeys = Object.keys(aChartData[0]).filter(
+              (f) => f !== "DATE_GRAPH" && f !== "DATE" && f !== "VOLUME"
             );
-            oStrategyAnalysisModel.setProperty(
-              "/chartMeasuresFeed",
-              aAvailableFields
-            );
+
+            // 🔥 Incluye siempre estos campos más los indicadores dinámicos encontrados
+            const mandatoryFields = ["OPEN", "CLOSE", "HIGH", "LOW"];
+            aAvailableFields = [
+              ...new Set([...mandatoryFields, ...availableKeys]),
+            ];
           } else {
-            oStrategyAnalysisModel.setProperty("/chartMeasuresFeed", []);
+            aAvailableFields = ["OPEN", "CLOSE", "HIGH", "LOW"];
           }
+
+          this.getView()
+            .getModel("strategyAnalysisModel")
+            .setProperty("/chartMeasuresFeed", aAvailableFields);
         },
 
         _buildDynamicDataset: function () {
@@ -986,29 +1001,51 @@ sap.ui.define(
             return;
           }
 
-          // Quita el dataset y feeds anteriores
           oVizFrame.removeAllFeeds();
           oVizFrame.destroyDataset();
 
           if (aChartData.length === 0) {
-            // console.warn("No hay datos de chart_data para crear el dataset");
+            console.warn("No hay datos para mostrar en la gráfica.");
             return;
           }
 
-          // Extraer todas las claves (columnas) excepto la dimensión
-          const aKeys = Object.keys(aChartData[0]).filter(
-            (key) => key !== "DATE_GRAPH" && key !== "DATE"
-          );
+          // 🔥 Determinar todas las claves dinámicas (indicadores) más los campos base
+          const aBaseKeys = ["OPEN", "HIGH", "LOW", "CLOSE"];
+          const aDynamicKeys = new Set();
 
-          // Crear medidas dinámicas
-          const aMeasureDefs = aKeys.map((key) => {
-            return new sap.viz.ui5.data.MeasureDefinition({
-              name: key,
-              value: `{${key}}`,
+          aChartData.forEach((item) => {
+            Object.keys(item).forEach((key) => {
+              if (
+                ![
+                  "DATE_GRAPH",
+                  "DATE",
+                  "VOLUME",
+                  "BUY_SIGNAL",
+                  "SELL_SIGNAL",
+                  "INDICATORS_TEXT",
+                  "SIGNALS",
+                  "RULES",
+                  "SHARES",
+                  "type",
+                  "price",
+                  "reasoning",
+                ].includes(key)
+              ) {
+                aDynamicKeys.add(key);
+              }
             });
           });
 
-          // Construir el nuevo dataset dinámico
+          const aAllKeys = [...new Set([...aBaseKeys, ...aDynamicKeys])];
+
+          const aMeasureDefs = aAllKeys.map(
+            (key) =>
+              new sap.viz.ui5.data.MeasureDefinition({
+                name: key,
+                value: `{${key}}`,
+              })
+          );
+
           const oDataset = new sap.viz.ui5.data.FlattenedDataset({
             data: { path: "strategyResultModel>/chart_data" },
             dimensions: [
@@ -1023,8 +1060,6 @@ sap.ui.define(
 
           oVizFrame.setDataset(oDataset);
 
-          // Configurar feeds dinámicamente con un límite (ejemplo: 4 medidas)
-          const maxMeasures = 4;
           oVizFrame.addFeed(
             new sap.viz.ui5.controls.common.feeds.FeedItem({
               uid: "timeAxis",
@@ -1032,16 +1067,28 @@ sap.ui.define(
               values: ["Fecha"],
             })
           );
+
           oVizFrame.addFeed(
             new sap.viz.ui5.controls.common.feeds.FeedItem({
               uid: "valueAxis",
               type: "Measure",
-              values: aKeys.slice(0, maxMeasures),
+              values: aAllKeys,
             })
           );
 
-          oVizFrame.invalidate(); // Forzar redibujado
-          // console.log("Dataset y feeds dinámicos actualizados:", aKeys);
+          oVizFrame.setVizProperties({
+            plotArea: { dataLabel: { visible: false } },
+            legend: { visible: true },
+            title: { text: "Análisis de Precios e Indicadores" },
+            valueAxis: { title: { text: "Precio / Indicadores" } },
+            timeAxis: {
+              title: { text: "Fecha" },
+              levels: ["day", "month", "year"],
+              label: { formatString: "dd/MM/yy" },
+            },
+          });
+
+          oVizFrame.invalidate();
         },
 
         /**

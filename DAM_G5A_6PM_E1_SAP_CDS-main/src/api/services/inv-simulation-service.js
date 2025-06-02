@@ -1744,7 +1744,6 @@ async function SimulateIronCondor(simulation) {
   const SIMULATIONNAME = `Iron Condor-${numR}`;
   const STRATEGYID = "IC";
 
-  // Validaciones básicas
   const missingParams = [];
   if (!SYMBOL) missingParams.push("SYMBOL");
   if (!STARTDATE || isNaN(new Date(STARTDATE))) missingParams.push("STARTDATE");
@@ -1847,13 +1846,13 @@ async function SimulateIronCondor(simulation) {
 
     totalProfit += tradeResult;
 
-    // SEÑALES ADICIONALES: RSI extremo y volumen extra alto
+    // SEÑALES ADICIONALES, REGLAS MÁS DETALLADAS
     if (rsiVal > 80) {
       trades.push({
         DATE: day.DATE,
         TYPE: "sell",
         PRICE: price,
-        REASONING: `RSI extremadamente alto (${rsiVal}), posible sobrecompra.`,
+        REASONING: `RSI muy alto (${rsiVal}), riesgo elevado de reversión bajista.`,
         SHARES: 0,
       });
     }
@@ -1862,7 +1861,7 @@ async function SimulateIronCondor(simulation) {
         DATE: day.DATE,
         TYPE: "buy",
         PRICE: price,
-        REASONING: `RSI extremadamente bajo (${rsiVal}), posible sobreventa.`,
+        REASONING: `RSI muy bajo (${rsiVal}), oportunidad de rebote técnico alcista.`,
         SHARES: 0,
       });
     }
@@ -1871,7 +1870,52 @@ async function SimulateIronCondor(simulation) {
         DATE: day.DATE,
         TYPE: "buy",
         PRICE: price,
-        REASONING: `Volumen inusualmente alto, posible inicio de tendencia fuerte.`,
+        REASONING: `Volumen extremadamente alto (${day.VOLUME}), posible ruptura impulsiva y continuación.`,
+        SHARES: 0,
+      });
+    }
+    if (day.CLOSE > day.HIGH * 0.98) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "sell",
+        PRICE: price,
+        REASONING: `Cierre muy cerca del máximo del día (${day.CLOSE} vs ${day.HIGH}), posible presión vendedora al alza.`,
+        SHARES: 0,
+      });
+    }
+    if (day.CLOSE < day.LOW * 1.02) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "buy",
+        PRICE: price,
+        REASONING: `Cierre muy cerca del mínimo del día (${day.CLOSE} vs ${day.LOW}), posible soporte técnico relevante.`,
+        SHARES: 0,
+      });
+    }
+    if (day.VOLUME < volThreshold / 2) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "neutral",
+        PRICE: price,
+        REASONING: `Volumen muy bajo (${day.VOLUME}), posible falta de convicción o tendencia clara.`,
+        SHARES: 0,
+      });
+    }
+    if (rsiVal >= rsiMax - 5 && day.VOLUME > volThreshold) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "sell",
+        PRICE: price,
+        REASONING: `RSI cerca del límite superior y volumen elevado (${rsiVal}, ${day.VOLUME}), alerta de posible corrección bajista.`,
+        SHARES: 0,
+      });
+    }
+    if (rsiVal <= rsiMin + 5 && day.VOLUME > volThreshold) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "buy",
+        PRICE: price,
+        REASONING: `RSI cerca del límite inferior y volumen elevado (${rsiVal}, ${day.VOLUME}), posible confirmación de rebote alcista.`,
         SHARES: 0,
       });
     }
