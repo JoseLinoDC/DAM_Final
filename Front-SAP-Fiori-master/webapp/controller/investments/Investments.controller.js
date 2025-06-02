@@ -20,13 +20,15 @@ sap.ui.define(
     FeedItem
   ) {
     "use strict";
-
+    
+    // URL base para la API de inversiones
     const API_INVERSIONES_URL_BASE =
       "http://localhost:3333/api/security/inversions/getAllSimulations";
 
     return Controller.extend(
       "com.invertions.sapfiorimodinv.controller.investments.Investments",
       {
+        // Controller para la vista de inversiones
         _oResourceBundle: null,
         _bSidebarExpanded: true,
         _sSidebarOriginalSize: "380px",
@@ -37,7 +39,7 @@ sap.ui.define(
          * Initializes models, sets default dates, and configures event delegates.
          */
         onInit: function () {
-          // 1. Initialize Symbol Model (static data for now)
+          // 1. Initialize Symbol Model with static data
           this._initSymbolModel();
 
           // 2. Initialize Price Data Model (empty for now)
@@ -55,6 +57,7 @@ sap.ui.define(
             "historyModel"
           );
 
+          // Inicializar el modelo de historial de inversiones
           this.getView().setModel(
             new JSONModel({
               strategies: [],
@@ -72,9 +75,10 @@ sap.ui.define(
             "historyModel"
           );
 
+          // Cargar las simulaciones desde la API
           this._loadSimulations();
 
-          // 3. Add event delegate for VizFrame configuration after rendering
+          // 3. Configure event delegate for after rendering of the view
           this.getView().addEventDelegate({
             onAfterRendering: this._onViewAfterRendering.bind(this),
           });
@@ -109,6 +113,7 @@ sap.ui.define(
             volThreshold: 100,
             expiryDays: 5,
 
+            // Campos sobre las estrategias
             strategies: [
               { key: "", text: "Seleccione una estrategia" },
               { key: "MACrossover", text: "MA Crossover" },
@@ -122,10 +127,12 @@ sap.ui.define(
             chartMeasuresFeed: ["PrecioCierre", "Señal BUY", "Señal SELL"],
           };
 
+          // Create the Strategy Analysis Model with initial data
           var oStrategyAnalysisModel = new JSONModel(
             oStrategyAnalysisModelData
           );
 
+          // Set the Strategy Analysis Model to the view
           this.getView().setModel(
             oStrategyAnalysisModel,
             "strategyAnalysisModel"
@@ -231,6 +238,7 @@ sap.ui.define(
           });
           this.getView().setModel(oStrategyResultModel, "strategyResultModel");
 
+          // Simulación de datos de prueba para el modelo de resultados
           var aTestChartData = [
             {
               DATE_GRAPH: new Date(2024, 4, 1),
@@ -309,6 +317,7 @@ sap.ui.define(
             },
           ];
 
+          // Mandar los datos de prueba al modelo de resultados
           oStrategyResultModel.setProperty("/chart_data", aTestChartData);
           oStrategyResultModel.setProperty("/signals", [
             {
@@ -329,7 +338,7 @@ sap.ui.define(
           // 8. Set default date range for analysis
           this._setDefaultDates();
 
-          // 9. Load ResourceBundle for i18n texts
+          // Cargar el modelo de I18n para los textos de las estrategias
           var oI18nModel = this.getOwnerComponent().getModel("i18n");
           if (oI18nModel) {
             try {
@@ -424,10 +433,7 @@ sap.ui.define(
           this._updateChartMeasuresFeed();
         },
 
-        /**
-         * Event handler for tab selection.
-         * @param {sap.ui.base.Event} oEvent The event object
-         */
+        // Evento para manejar el cambio de pestaña
         onTabSelect: function (oEvent) {
           var sKey = oEvent.getParameter("key");
           this.getView()
@@ -435,19 +441,12 @@ sap.ui.define(
             .setProperty("/selectedTab", sKey);
         },
 
-        /**
-         * Event handler for after rendering of the view.
-         * Configures the VizFrame once it's rendered.
-         * @private
-         */
+        // Evento para manejar el cambio de tamaño del sidebar
         _onViewAfterRendering: function () {
           this._configureChart();
         },
 
-        /**
-         * Initializes the symbol model with static data.
-         * @private
-         */
+        // Funcion para cargar los simbolos
         _initSymbolModel: function () {
           const oSymbolModel = new JSONModel({
             symbols: [
@@ -465,10 +464,7 @@ sap.ui.define(
           this.getView().setModel(oSymbolModel, "symbolModel");
         },
 
-        /**
-         * Configures the properties of the VizFrame.
-         * @private
-         */
+        // Funcion para mostrar en la grafica
         _configureChart: function () {
           const oVizFrame = this.byId("idVizFrame");
           if (!oVizFrame) {
@@ -520,10 +516,7 @@ sap.ui.define(
           );
         },
 
-        /**
-         * Sets default start and end dates for the analysis.
-         * @private
-         */
+        // Funcion para establecer las fechas por defecto
         _setDefaultDates: function () {
           var oStrategyAnalysisModel = this.getView().getModel(
             "strategyAnalysisModel"
@@ -538,11 +531,7 @@ sap.ui.define(
           );
         },
 
-        /**
-         * Event handler for strategy selection change.
-         * Updates visible controls and chart measures.
-         * @param {sap.ui.base.Event} oEvent The event object
-         */
+        // Funcion para cambiar la estrategia seleccionada sobre que indicadores mostrara
         onStrategyChange: function (oEvent) {
           const oView = this.getView();
           const oStrategyAnalysisModel = oView.getModel(
@@ -612,11 +601,7 @@ sap.ui.define(
           this._updateChartMeasuresFeed();
         },
 
-        /**
-         * Event handler for running the analysis.
-         * Makes an API call to get simulation data and updates models.
-         * It also triggers the update of chart measures feed after data is loaded.
-         */
+        // Funcion para analizar la estrategia seleccionada y ejecutar la simulación
         onRunAnalysisPress: function () {
           const oView = this.getView();
           const oStrategyModel = oView.getModel("strategyAnalysisModel");
@@ -737,6 +722,7 @@ sap.ui.define(
             }
           };
 
+          // Obtener SPECS según la estrategia seleccionada
           const SPECS = getSpecs(apiStrategyName);
 
           // Construcción del objeto request
@@ -755,6 +741,7 @@ sap.ui.define(
 
           // console.log("Enviando solicitud con:", oRequestBody);
 
+          // Configurar el modelo de resultados
           fetch(
             `http://localhost:3333/api/security/inversions/simulation?strategy=${apiStrategyName}`,
             {
@@ -822,12 +809,7 @@ sap.ui.define(
             });
         },
 
-        /**
-         * Helper function to format a Date object to "YYYY-MM-DD" string.
-         * Made public for use in XML view bindings.
-         * @param {Date} oDate The date object to format.
-         * @returns {string|null} The formatted date string or null if input is not a Date.
-         */
+       // Funcion auxiliar para parsear fechas
         formatDate: function (oDate) {
           return oDate
             ? DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" }).format(
@@ -836,12 +818,7 @@ sap.ui.define(
             : null;
         },
 
-        /**
-         * Helper function to format the count of signals by type.
-         * @param {Array} aSignals The array of signal objects.
-         * @param {string} sType The type of signal to count ('buy', 'sell', 'stop_loss').
-         * @returns {number} The count of signals of the specified type.
-         */
+        // Funcion auxiliar para contar señales por tipo
         formatSignalCount: function (aSignals, sType) {
           if (!Array.isArray(aSignals)) {
             return 0;
@@ -849,11 +826,7 @@ sap.ui.define(
           return aSignals.filter((signal) => signal.TYPE === sType).length;
         },
 
-        /**
-         * Helper function to format the count of stop loss signals.
-         * @param {Array} aSignals The array of signal objects.
-         * @returns {number} The count of stop loss signals.
-         */
+        // Funcion auxiliar para contar señales de compra
         formatStopLossCount: function (aSignals) {
           if (!Array.isArray(aSignals)) {
             return 0;
@@ -862,11 +835,7 @@ sap.ui.define(
             .length;
         },
 
-        /**
-         * Helper function to determine the ObjectStatus state based on signal type.
-         * @param {string} sType The type of signal ('buy', 'sell', 'stop_loss').
-         * @returns {string} The ObjectStatus state ('Success', 'Error', 'Warning', 'None').
-         */
+        // Formato para la señal
         formatSignalState: function (sType) {
           if (sType === "buy") {
             return "Success";
@@ -878,26 +847,17 @@ sap.ui.define(
           return "None";
         },
 
-        /**
-         * Helper function to format a signal price.
-         * @param {number} fPrice The price of the signal.
-         * @returns {string} The formatted price string.
-         */
+        // Formato para el precio de la señal
         formatSignalPrice: function (fPrice) {
           return fPrice ? fPrice.toFixed(2) + " USD" : "N/A";
         },
 
-        /**
-         * Helper function to prepare raw API data for both table and VizFrame.
-         * Ensures dates are Date objects for the chart and numeric values are parsed.
-         * @param {Array} aData Raw data from API (e.g., CHART_DATA).
-         * @param {Array} aSignals Signal data from API.
-         * @returns {Array} Transformed data suitable for binding.
-         * @private
-         */
+        // Prepara los datos de la tabla para el VizFrame
         _prepareTableData: function (aData, aSignals) {
+          // Asegurarse de que aData sea un array
           if (!Array.isArray(aData)) return [];
 
+          // Asegurarse de que aSignals sea un array
           return aData.map((oItem) => {
             const signal =
               (aSignals || []).find((s) => {
@@ -910,6 +870,7 @@ sap.ui.define(
                 );
               }) || {};
 
+              // Parsear la fecha del item
             const dateObject = this._parseDate(oItem.DATE);
 
             // 🔥 Extraer y mapear todos los indicadores dinámicos (RSI y más)
@@ -924,6 +885,7 @@ sap.ui.define(
               });
             }
 
+            // Si no hay indicadores, inicializar como objeto vacío
             return {
               DATE_GRAPH: dateObject,
               DATE: dateObject ? this.formatDate(dateObject) : null,
@@ -955,23 +917,19 @@ sap.ui.define(
           });
         },
 
-        /**
-         * Dynamically updates the list of measures displayed on the VizFrame's value axis.
-         * This function is called onInit and when the strategy changes.
-         * @private
-         */
-
-        //Modifica el feed de medidas del gráfico según la estrategia seleccionada
-        //para evitar estar cambiando el dataset y feeds cada vez que se cambia la estrategia
+        // Actualiza las medidas del gráfico dinámicamente
         _updateChartMeasuresFeed: function () {
           this._buildDynamicDataset();
 
+          // Actualiza las medidas del gráfico en el modelo de análisis de estrategia
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
           );
+          // 🔥 Obtiene los datos del gráfico del modelo de resultados de estrategia
           const aChartData =
             oStrategyResultModel.getProperty("/chart_data") || [];
 
+            // 🔥 Determina los campos disponibles para el gráfico
           let aAvailableFields = [];
           if (aChartData.length > 0) {
             const availableKeys = Object.keys(aChartData[0]).filter(
@@ -992,22 +950,28 @@ sap.ui.define(
             .setProperty("/chartMeasuresFeed", aAvailableFields);
         },
 
+        // Construye el dataset dinámico para el VizFrame
         _buildDynamicDataset: function () {
+          // 🔥 Asegúrate de que el VizFrame y el modelo de resultados estén disponibles
           const oVizFrame = this.byId("idVizFrame");
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
           );
+          // 🔥 Obtiene los datos del gráfico del modelo de resultados de estrategia
           const aChartData =
             oStrategyResultModel.getProperty("/chart_data") || [];
 
+          // 🔥 Verifica que el VizFrame esté disponible
           if (!oVizFrame) {
             console.warn("VizFrame no encontrado");
             return;
           }
 
+          // 🔥 Limpia el VizFrame antes de configurar el nuevo dataset
           oVizFrame.removeAllFeeds();
           oVizFrame.destroyDataset();
 
+          // 🔥 Verifica que haya datos para mostrar
           if (aChartData.length === 0) {
             console.warn("No hay datos para mostrar en la gráfica.");
             return;
@@ -1017,6 +981,7 @@ sap.ui.define(
           const aBaseKeys = ["OPEN", "HIGH", "LOW", "CLOSE"];
           const aDynamicKeys = new Set();
 
+          // 🔥 Recorre los datos del gráfico para encontrar claves dinámicas
           aChartData.forEach((item) => {
             Object.keys(item).forEach((key) => {
               if (
@@ -1040,8 +1005,10 @@ sap.ui.define(
             });
           });
 
+          // 🔥 Combina las claves base y dinámicas, asegurando unicidad
           const aAllKeys = [...new Set([...aBaseKeys, ...aDynamicKeys])];
 
+          // 🔥 Configura las medidas del gráfico
           const aMeasureDefs = aAllKeys.map(
             (key) =>
               new sap.viz.ui5.data.MeasureDefinition({
@@ -1050,6 +1017,7 @@ sap.ui.define(
               })
           );
 
+          // 🔥 Configura el dataset del VizFrame
           const oDataset = new sap.viz.ui5.data.FlattenedDataset({
             data: { path: "strategyResultModel>/chart_data" },
             dimensions: [
@@ -1062,8 +1030,10 @@ sap.ui.define(
             measures: aMeasureDefs,
           });
 
+          // 🔥 Asigna el dataset al VizFrame
           oVizFrame.setDataset(oDataset);
 
+          // 🔥 Configura las feeds del VizFrame
           oVizFrame.addFeed(
             new sap.viz.ui5.controls.common.feeds.FeedItem({
               uid: "timeAxis",
@@ -1072,6 +1042,7 @@ sap.ui.define(
             })
           );
 
+          // Añade las medidas dinámicas al feed de valor
           oVizFrame.addFeed(
             new sap.viz.ui5.controls.common.feeds.FeedItem({
               uid: "valueAxis",
@@ -1080,6 +1051,7 @@ sap.ui.define(
             })
           );
 
+          // Configura las propiedades del VizFrame
           oVizFrame.setVizProperties({
             plotArea: { dataLabel: { visible: false } },
             legend: { visible: true },
@@ -1092,19 +1064,19 @@ sap.ui.define(
             },
           });
 
+          // 🔥 Forzar el re-renderizado del VizFrame
           oVizFrame.invalidate();
         },
 
-        /**
-         * Event handler for refreshing chart data.
-         * Triggers a new analysis run with the current symbol.
-         */
+        // Evento para refrescar el gráfico con los datos actuales
         onRefreshChart: function () {
+          // Verifica si el modelo de resultados tiene datos
           const oVizFrame = this.byId("idVizFrame");
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
           );
 
+          // Verifica si hay resultados para actualizar
           if (!oStrategyResultModel.getProperty("/hasResults")) {
             MessageToast.show("No hay resultados para actualizar el gráfico.");
             return;
@@ -1113,6 +1085,7 @@ sap.ui.define(
           // Refresca solo el VizFrame con los datos actuales
           this._updateChartMeasuresFeed();
 
+          // Forzar el re-renderizado del gráfico
           if (oVizFrame) {
             oVizFrame.invalidate(); // Esto fuerza el re-renderizado del gráfico
             MessageToast.show("Gráfico actualizado con los datos actuales.");
@@ -1123,11 +1096,6 @@ sap.ui.define(
           }
         },
 
-        /**
-         * Event handler for data point selection on the VizFrame.
-         * Updates the ViewModel with selected point's data.
-         * @param {sap.ui.base.Event} oEvent The event object
-         */
 
         //Esta función maneja la selección de un punto de datos en el gráfico
         //y muestra un popover con los detalles del punto seleccionado.
@@ -1139,12 +1107,14 @@ sap.ui.define(
           console.log("Datos seleccionados:", oData);
 
           if (oData && oData.length > 0) {
+            // Extraer los datos del primer punto seleccionado
             const oSelectedData = oData[0];
             const sFecha = new Date(oSelectedData.data.Fecha);
             const sMeasureName = oSelectedData.data.measureNames; // <- Medida seleccionada
             const fValue = oSelectedData.data[sMeasureName]; // <- Valor dinámico
             const iRowNumber = oSelectedData.data._context_row_number;
 
+            // Verifica que los datos necesarios estén presentes
             if (!this._oDataPointPopover) {
               this._oDataPointPopover = new sap.m.Popover({
                 title: "Detalles del Punto",
@@ -1162,8 +1132,10 @@ sap.ui.define(
                 placement: sap.m.PlacementType.Auto,
                 showHeader: true,
               });
+              // Añadir el popover como dependiente de la vista
               this.getView().addDependent(this._oDataPointPopover);
             } else {
+              // Si el popover ya existe, actualiza su contenido
               const oVBox = this._oDataPointPopover.getContent()[0];
               oVBox.removeAllItems();
               oVBox.addItem(
@@ -1177,6 +1149,7 @@ sap.ui.define(
               oVBox.addItem(new sap.m.Text({ text: "Fila: " + iRowNumber }));
             }
 
+            // Abre el popover cerca del punto seleccionado
             const oDomRef = oSelectedData.target;
             this._oDataPointPopover.openBy(oDomRef);
           } else {
@@ -1184,12 +1157,9 @@ sap.ui.define(
           }
         },
 
-        /**
-         * Event handler for showing investment history popover.
-         * @param {sap.ui.base.Event} oEvent The event object
-         */
-
+        // Evento para manejar el clic en el botón de historial
         onHistoryPress: async function (oEvent) {
+          // Verifica si el popover ya existe, si no, lo crea
           if (!this._oHistoryPopover) {
             this._oHistoryPopover = sap.ui.xmlfragment(
               "com.invertions.sapfiorimodinv.view.investments.fragments.InvestmentHistoryPanel",
@@ -1208,13 +1178,15 @@ sap.ui.define(
               }
             }
           }
-
+          
+          // Verifica si el popover ya está abierto
           try {
             const response = await fetch(
               "http://localhost:3333/api/security/inversions/getAllSimulations"
             );
             if (!response.ok) throw new Error("Error en la solicitud");
 
+            // Obtiene los datos de la respuesta
             const result = await response.json();
 
             // Normaliza el array de simulaciones
@@ -1269,15 +1241,17 @@ sap.ui.define(
                 profitRange: [minProfit, maxProfit],
               },
             };
-            // ...existing code...
 
+            // Establece el modelo de datos en la vista
             const oModel = new sap.ui.model.json.JSONModel(oData);
             this.getView().setModel(oModel, "historyModel");
 
+            // Establece el modelo de resumen del historial
             if (this._oHistoryPopover.isOpen()) {
               this._oHistoryPopover.close();
               return;
             }
+            // Establece el modelo de resumen del historial
             this._oHistoryPopover.openBy(oEvent.getSource());
           } catch (err) {
             MessageToast.show("Error al obtener simulaciones");
@@ -1285,6 +1259,7 @@ sap.ui.define(
           }
         },
 
+        // Evento para manejar la selección de una estrategia en el historial
         onLoadStrategy: function () {
           // Busca la tabla directamente en el core
           const oTable = sap.ui.getCore().byId("historyTable");
@@ -1293,12 +1268,14 @@ sap.ui.define(
             return;
           }
 
+          // Verifica si hay elementos seleccionados
           const aSelectedItems = oTable.getSelectedItems();
           if (!aSelectedItems || aSelectedItems.length === 0) {
             MessageToast.show("Seleccione una estrategia para cargar.");
             return;
           }
 
+          // Obtiene el contexto del primer elemento seleccionado
           const oSelectedContext =
             aSelectedItems[0].getBindingContext("historyModel");
           if (!oSelectedContext) {
@@ -1308,6 +1285,7 @@ sap.ui.define(
             return;
           }
 
+          // Obtiene el objeto de la estrategia seleccionada
           const oSelectedStrategy = oSelectedContext.getObject();
           if (!oSelectedStrategy || !oSelectedStrategy._fullRecord) {
             MessageToast.show(
@@ -1327,9 +1305,7 @@ sap.ui.define(
           MessageToast.show("Simulación cargada.");
         },
 
-        /**
-         * Toggles the visibility of advanced filters in the history popover.
-         */
+        // Función para cargar los datos de la simulación seleccionada
         onToggleAdvancedFilters: function () {
           if (!this._oHistoryPopover) return;
 
@@ -1343,12 +1319,10 @@ sap.ui.define(
         },
 
         //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        /**
-         * Carga las simulaciones desde la API
-         * @private
-         */
+        // Carga las simulaciones desde el servidor y actualiza el modelo de la vista
         _loadSimulations: async function () {
           try {
+            // URL base de la API para obtener las simulaciones
             const res = await fetch(API_INVERSIONES_URL_BASE);
             const data = await res.json();
             const simulations = data.value || [];
@@ -1369,6 +1343,7 @@ sap.ui.define(
             let totalProfit = 0;
             let totalPercentage = 0;
 
+            // Recorre las simulaciones para calcular los totales
             simulations.forEach((sim) => {
               const summary = sim.SUMMARY || {};
               totalInitialCash += 50000; // o el valor inicial definido
@@ -1379,6 +1354,7 @@ sap.ui.define(
               totalPercentage += summary.PERCENTAGE_RETURN || 0;
             });
 
+            // Crear un resumen del historial de simulaciones
             const historySummary = {
               totalSimulations: simulations.length,
               totalInitialCash: totalInitialCash,
@@ -1392,6 +1368,7 @@ sap.ui.define(
                   : 0,
             };
 
+            // Establecer los modelos en la vista
             this.getView().setModel(
               new JSONModel({ values: historyData }),
               "historyModel"
@@ -1401,6 +1378,7 @@ sap.ui.define(
               "historySummaryModel"
             );
 
+            // Calcular el rango de inversión del historial de estrategias simuladas
             const amounts = historyData.map((item) => item.amount || 0);
             const minAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
             const maxAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
@@ -1417,6 +1395,7 @@ sap.ui.define(
               maxAmount,
             ]);
 
+            // Establecer el modelo de resumen del historial
             this.getView()
               .getModel("historyModel")
               .setData({
@@ -1441,7 +1420,7 @@ sap.ui.define(
         },
 
         //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+        // Formatea el valor de las acciones para mostrarlo en la tabla
         formatShares: function (value) {
           if (isNaN(value)) {
             return "-";
@@ -1491,11 +1470,16 @@ sap.ui.define(
               latestSim.CHART_DATA || [],
               latestSim.SIGNALS || []
             );
+
+            // Asegúrate de que latestSim tenga los datos necesarios
             const oStrategyResultModel = this.getView().getModel(
               "strategyResultModel"
             );
+
+            // Limpia el modelo antes de actualizar
             const summary = latestSim.SUMMARY || {};
 
+            // Actualizar el modelo de resultados de estrategia
             oStrategyResultModel.setProperty("/hasResults", true);
             oStrategyResultModel.setProperty("/chart_data", aChartData);
             oStrategyResultModel.setProperty(
@@ -1569,17 +1553,7 @@ sap.ui.define(
 
         //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        /**
-         * Carga los datos de una simulación específica en el gráfico
-         * @param {Object} oSimulation Datos de la simulación
-         * @private
-         */
-
-        /**
-         * Carga los datos de una simulación específica en el gráfico
-         * @param {Object} oSimulation Datos de la simulación
-         * @private
-         */
+        // Carga los datos de una simulación específica y actualiza el modelo de resultados de estrategia
         _loadSimulationData: async function (oSimulation) {
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
@@ -1678,6 +1652,8 @@ sap.ui.define(
           // );
         },
 
+        //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        // Prepara los datos para la tabla y el gráfico
         _parseDate: function (dateValue) {
           // Si ya es un objeto Date, devolverlo directamente
           if (dateValue instanceof Date) {
@@ -1702,6 +1678,7 @@ sap.ui.define(
           return null;
         },
 
+        // Extrae los indicadores y los formatea para la tabla y el gráfico
         _extractIndicators: function (aIndicators) {
           const result = {
             values: {},
@@ -1724,6 +1701,7 @@ sap.ui.define(
           return result;
         },
 
+        // Elimina las simulaciones seleccionadas
         onDeleteSelected: async function () {
           const oModel = this.getView().getModel("historyModel");
           const aSelectedIds = oModel.getProperty("/selectedIds") || [];
@@ -1776,6 +1754,7 @@ sap.ui.define(
           );
         },
 
+        // Evento para manejar el cambio de selección en la tabla del historial
         onSelectionChange: function (oEvent) {
           const oTable = oEvent.getSource();
           const aSelectedItems = oTable.getSelectedItems();
@@ -1807,26 +1786,31 @@ sap.ui.define(
             oEvent.getParameter("query") ??
             oEvent.getParameter("newValue") ??
             "";
+          // Asegúrate de que el modelo esté disponible
           const oModel = this.getView().getModel("historyModel");
           const aAllStrategies =
             oModel.getProperty("/allStrategies") ||
             oModel.getProperty("/strategies") ||
             [];
 
+          // Si no hay estrategias, no hacer nada
           if (!sQuery) {
             oModel.setProperty("/filteredCount", aAllStrategies.length);
             oModel.setProperty("/strategies", aAllStrategies);
             return;
           }
 
+          // Filtrar las estrategias basadas en el nombre o símbolo
           const sLowerQuery = sQuery.toLowerCase();
 
+          // Filtrar las estrategias que coincidan con la consulta
           const aFiltered = aAllStrategies.filter((item) => {
             const name = (item.strategyName || "").toLowerCase();
             const symbol = (item.symbol || "").toLowerCase();
             return name.includes(sLowerQuery) || symbol.includes(sLowerQuery);
           });
 
+          // Actualizar el modelo con las estrategias filtradas
           oModel.setProperty("/filteredCount", aFiltered.length);
           oModel.setProperty("/strategies", aFiltered);
         },
@@ -1949,6 +1933,7 @@ sap.ui.define(
           oModel.setProperty("/strategies", aFiltered);
         },
 
+        // Evento para manejar el cierre del popover de historial
         onCloseHistoryPopover: function () {
           if (this._oHistoryPopover && this._oHistoryPopover.isOpen()) {
             this._oHistoryPopover.close();

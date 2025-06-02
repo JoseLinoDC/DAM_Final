@@ -22,6 +22,8 @@ sap.ui.define([
             this.loadUsers();
         },
 
+        //=========================================================================================================================================================
+        //=============== PREPARAR PAYLOAD PARA CREAR/EDITAR USUARIO ============================================================================================
         prepareUserPayload: function (userData, aSelectedRoles, isEdit = false) {
             const now = new Date();
             const payload = {
@@ -253,6 +255,7 @@ sap.ui.define([
             }
         },
 
+        // Cargar datos del usuario para editar
         onEditSaveUser: async function () {
             try {
                 const oView = this.getView();
@@ -364,14 +367,16 @@ sap.ui.define([
             }
         },
 
+        // Cargar datos del usuario para editar
         onEditRoleSelected: function (oEvent) {
+            // Verificar si el diálogo de edición está abierto
             const oComboBox = oEvent.getSource();
             const oSelectedItem = oEvent.getSource().getSelectedItem();
             if (!oSelectedItem) return;
-
+            // Obtener el ID y nombre del rol seleccionado
             const sRoleId = oSelectedItem.getKey();
             const sRoleName = oSelectedItem.getText();
-
+            // Verificar si el diálogo de edición está abierto
             const oModel = this.getView().getModel("editUser");
             const aRoles = oModel.getProperty("/selectedRoles") || [];
 
@@ -381,13 +386,14 @@ sap.ui.define([
                 oEvent.getSource().setSelectedKey(null);
                 return;
             }
-
+            // Verificar por ID de rol
             aRoles.push({
                 ROLEID: sRoleId,
                 ROLENAME: sRoleName
             });
+            // Actualizar el modelo con los roles seleccionados
             oModel.setProperty("/selectedRoles", aRoles);
-
+            // Actualizar la vista de roles seleccionados
             this._updateSelectedRolesView(aRoles, true);
             oEvent.getSource().setSelectedKey(null);
 
@@ -424,7 +430,8 @@ sap.ui.define([
                 MessageToast.show("Selecciona un usuario para eliminar de la base de datos");
             }
         },
-
+ 
+        // Lógica para eliminar usuario físicamente
         async deleteUser(UserId) {
             await this._executeUserAction(
                 UserId,
@@ -498,6 +505,7 @@ sap.ui.define([
             }
         },
 
+        // Lógica para activar usuario
         async activateUser(UserId) {
             await this._executeUserAction(
                 UserId,
@@ -533,12 +541,14 @@ sap.ui.define([
             this.getView().getModel("viewModel").setProperty("/buttonsEnabled", true);
         },
 
+        // Función auxiliar para ejecutar acciones de usuario (eliminar, desactivar, activar)
         onSearchUser: function (oEvent) {
             try {
                 const sQueryRaw = oEvent.getSource().getValue();
                 const sQuery = this._normalizeText(sQueryRaw);
                 const oTable = this.getView().byId("IdTable1UsersManageTable");
 
+                // Si la consulta está vacía, no aplicar filtros
                 if (sQuery) {
                     const aSearchFields = [
                         "USERID",
@@ -618,7 +628,7 @@ sap.ui.define([
                 .replace(/[\u0300-\u036f]/g, "");
         },
 
-
+        // Función para ejecutar acciones de usuario (eliminar, desactivar, activar)
         onRefresh: function () {
             this.loadUsers();
         },
@@ -779,6 +789,7 @@ sap.ui.define([
                 });
         },
 
+        // Función para manejar la selección de roles en el diálogo de creación de usuario
         onRoleSelected: function (oEvent) {
             const oComboBox = oEvent.getSource();
             const sSelectedKey = oComboBox.getSelectedKey();
@@ -861,7 +872,6 @@ sap.ui.define([
         //=========== Funciones de validaciones o extras ========================================================================================================
         //=======================================================================================================================================================
 
-        // ...existing code...
         resetNewUserModel: function () {
             const oView = this.getView();
             // Limpia el modelo de datos
@@ -938,6 +948,7 @@ sap.ui.define([
             // Cargar sucursales de la compañía seleccionada
             this.loadSucursales(sCompanyId);
         },
+
         // Método para cargar sucursales
         loadSucursales: function (companyId) {
             if (!companyId) return Promise.resolve([]);
@@ -1028,6 +1039,7 @@ sap.ui.define([
             }
         },
 
+        // Formatear fecha de cumpleaños para mostrar en la tabla
         formatDateToString: function (date) {
             if (!date) return null;
 
@@ -1305,6 +1317,7 @@ sap.ui.define([
         },
 
 
+        // Función para manejar la selección de compañía en el diálogo de edición
         onEditCompanySelected: function (oEvent) {
             const oSelectedItem = oEvent.getParameter("selectedItem");
             if (!oSelectedItem) return;
@@ -1330,7 +1343,7 @@ sap.ui.define([
             }
         },
 
-        // ...existing code...
+        // Función para manejar la selección de sucursal en el diálogo de edición
         onEditSucursalSelected: function (oEvent) {
             const oComboBox = oEvent.getSource();
             const sSucursalId = oComboBox.getSelectedKey();
@@ -1370,6 +1383,7 @@ sap.ui.define([
             if (oDeptoCombo) oDeptoCombo.setSelectedKey(null);
         },
 
+        // Función para manejar la selección de departamento en el diálogo de edición
         onEditCediSelected: function (oEvent) {
             const oComboBox = oEvent.getSource();
             const sDeptoId = oComboBox.getSelectedKey();
@@ -1386,6 +1400,7 @@ sap.ui.define([
             }
         },
 
+        // Formatear el número de teléfono al escribir
         onPhoneNumberLiveChange: function (oEvent) {
             let sValue = oEvent.getParameter("value") || "";
             // Solo números, máximo 10 dígitos
@@ -1412,6 +1427,7 @@ sap.ui.define([
             oInput.setValue(sFormatted);
         },
 
+        // Formatear el email al escribir
         onEmailPartChange: function (oEvent) {
             // Detectar modelo (newUser o editUser)
             const oInput = oEvent.getSource();

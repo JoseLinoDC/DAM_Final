@@ -44,7 +44,7 @@ sap.ui.define([
 
     },
 
-
+    // Inicializa los modelos necesarios
     initModels: function () {
       const view = this.getView();
       view.setModel(new JSONModel(), "selectedRole");
@@ -61,6 +61,7 @@ sap.ui.define([
       }), "newRoleModel");
     },
 
+    // Carga los catálogos una sola vez
     loadCatalogsOnce: async function () {
       if (!this._catalogsLoaded) {
         await this.loadCatalog("IdProcess", "processCatalogModel");
@@ -70,10 +71,12 @@ sap.ui.define([
       }
     },
 
+    // Abre el diálogo para crear un nuevo rol
     onOpenDialog: async function () {
       await this.loadApplications();
       await this.loadCatalogsOnce(); // ✅ para no volver a cargar
 
+      // Verifica si el diálogo ya está creado
       if (!this._pDialog) {
         this._pDialog = await Fragment.load({
           name: "com.invertions.sapfiorimodinv.view.security.fragments.AddRoleDialog",
@@ -82,6 +85,7 @@ sap.ui.define([
         this.getView().addDependent(this._pDialog);
       }
 
+      // Reinicia el modelo del diálogo
       this.getView().setModel(new JSONModel({
         ROLEID: "",
         ROLENAME: "",
@@ -96,7 +100,7 @@ sap.ui.define([
       this._pDialog.open();
     },
 
-
+    // Cierra el diálogo de creación o edición de rol
     onDialogClose: function () {
       if (this._pDialog) this._pDialog.close();
       if (this._pEditDialog) this._pEditDialog.close();
@@ -178,6 +182,7 @@ sap.ui.define([
       const aModels = ["newRoleModel", "roleDialogModel"];
       let oContext, sModelName;
 
+      // Busca el contexto en los modelos
       for (let model of aModels) {
         oContext = oSource.getBindingContext(model);
         if (oContext) {
@@ -186,23 +191,26 @@ sap.ui.define([
         }
       }
 
+      // Si no se encontró el contexto, muestra un error
       if (!oContext) {
         MessageBox.error("No se pudo obtener el contexto del privilegio.");
         return;
       }
 
+      // Obtiene el modelo y los datos
       const oModel = oContext.getModel();          // Obtiene el modelo detectado
       const oData = oModel.getData();              // Datos del modelo
       const sPath = oContext.getPath();            // Ej: /PRIVILEGES/1
       const iIndex = parseInt(sPath.split("/")[2]);
 
+      // Verifica si el índice es un número válido
       if (!isNaN(iIndex)) {
         oData.PRIVILEGES.splice(iIndex, 1);        // Elimina el elemento
         oModel.refresh(true);                      // Refresca la vista
       }
     },
 
-
+    // Formateadores para mostrar datos en la vista
     formatRegDate: function (detailRow) {
       return detailRow?.DETAIL_ROW_REG?.[0]?.REGDATE || "-";
     },
@@ -213,6 +221,7 @@ sap.ui.define([
       return detailRow?.DETAIL_ROW_REG?.[0]?.REGUSER || "-";
     },
 
+    // Función para guardar el nuevo rol
     onSaveRole: async function () {
       const oView = this.getView();
       const oModel = oView.getModel("newRoleModel");
@@ -232,6 +241,7 @@ sap.ui.define([
       //   Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID]
       // );
 
+      // Prepara el payload para el backend
       const payload = {
         roles: {
           ROLEID,
@@ -259,6 +269,7 @@ sap.ui.define([
 
       // console.log("Payload a enviar:", JSON.stringify(payload, null, 2)); // debug
 
+      // Realiza la petición al backend
       try {
         const res = await fetch("http://localhost:3333/api/security/rol/addOne", {
           method: "POST",
@@ -285,6 +296,7 @@ sap.ui.define([
       }
     },
 
+    // Carga los roles desde el backend
     loadRolesData: function () {
       const oView = this.getView();
       const oModel = new JSONModel();
@@ -304,6 +316,7 @@ sap.ui.define([
         });
     },
 
+    // Carga el catálogo de privilegios
     loadPrivilegesCatalog: async function () {
       try {
         const response = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdPrivileges");
@@ -320,6 +333,7 @@ sap.ui.define([
       }
     },
 
+    // Carga un catálogo específico por su ID
     loadCatalog: async function (labelId, modelName) {
       try {
         const response = await fetch(`http://localhost:3333/api/security/values/getLabelById?labelid=${labelId}`);
@@ -338,6 +352,7 @@ sap.ui.define([
       }
     },
 
+    // Carga los datos de un catálogo específico por su ID
     loadCatalogData: async function (labelId) {
       try {
         const res = await fetch(`http://localhost:3333/api/security/values/getLabelById?labelid=${labelId}`);
@@ -349,6 +364,7 @@ sap.ui.define([
       }
     },
 
+    // Carga todos los usuarios del sistema
     loadAllUsers: async function () {
       try {
         const res = await fetch("http://localhost:3333/api/security/users/getAllUsers");
@@ -360,6 +376,7 @@ sap.ui.define([
       }
     },
 
+    // Carga el catálogo de aplicaciones
     loadApplications: async function () {
       try {
         const res = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdApplication");
@@ -378,6 +395,7 @@ sap.ui.define([
       }
     },
 
+    // Evento al seleccionar un rol en la tabla
     onRoleSelected: async function () {
       const oTable = this.byId("rolesTable");
       const iIndex = oTable.getSelectedIndex();
@@ -464,6 +482,7 @@ sap.ui.define([
       }
     },
 
+    // Evento al cambiar la aplicación seleccionada
     onApplicationChange: async function (oEvent) {
       const oSource = oEvent.getSource();
       // Detecta el modelo correcto
@@ -500,6 +519,7 @@ sap.ui.define([
       }
     },
 
+    // Evento al cambiar la vista seleccionada
     onViewChange: async function (oEvent) {
       const oSource = oEvent.getSource();
       // Detecta el modelo correcto
@@ -562,8 +582,7 @@ sap.ui.define([
     //   role.GROUPED_PRIVILEGES = Object.values(grouped);
     //   return role;
     // },
-
-    //abrir ventana edit Role
+    // Evento para actualizar un rol existente
     onUpdateRole: async function () {
       await this.loadApplications();
       const oView = this.getView();
@@ -603,7 +622,7 @@ sap.ui.define([
       });
 
       // Prepara el modelo de edición
-      // ...existing code...
+      
       const oModel = new JSONModel({
         OLD_ROLEID: oSelectedRole.ROLEID,
         ROLEID: oSelectedRole.ROLEID,
@@ -722,6 +741,7 @@ sap.ui.define([
         MessageBox.error("No se pudo conectar con el servidor");
       }
     },
+
     //ELMINAR FISICO ROL
     onDeleteRole: function () {
       const oTable = this.byId("rolesTable");
@@ -754,6 +774,7 @@ sap.ui.define([
       });
     },
 
+    // Activar rol
     onActivateRole: async function () {
       const oRole = this.getView().getModel("selectedRole").getData();
       if (!oRole || !oRole.ROLEID) return MessageToast.show("Selecciona un rol.");
@@ -772,7 +793,7 @@ sap.ui.define([
       }
     },
 
-    //borrado logico
+    // Desactivar rol
     onDeactivateRole: function () {
       this._handleRoleAction({
         dialogType: "confirm",
@@ -787,8 +808,7 @@ sap.ui.define([
       });
     },
 
-
-
+    // Función genérica para manejar acciones de rol (activar, desactivar, eliminar)
     _handleRoleAction: function (options) {
       const oView = this.getView();
       const oTable = this.byId("rolesTable");
@@ -887,8 +907,6 @@ sap.ui.define([
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
     },
-
-
 
   });
 });

@@ -21,6 +21,7 @@ sap.ui.define(
           this.loadLabels();
         },
 
+        // Método para cargar los labels desde el servicio
         loadLabels: async function () {
           try {
             const oModel = this.getView().getModel();
@@ -39,6 +40,7 @@ sap.ui.define(
           }
         },
 
+        // Método para manejar el evento de búsqueda en la tabla
         onFilterChange: function (oEvent) {
           var sQuery = oEvent.getParameter("newValue").toLowerCase();
           var oTable = this.byId("catalogTable");
@@ -77,6 +79,7 @@ sap.ui.define(
           });
         },
 
+        // Método para abrir el diálogo de adición de un nuevo catálogo
         onAddCatalog: function () {
           var oModel = new JSONModel({
             COMPANYID: "0",
@@ -114,6 +117,7 @@ sap.ui.define(
           }
         },
 
+        // Método para guardar un nuevo catálogo
         onSaveCatalog: async function () {
           var oModel = this.getView().getModel("addCatalogModel");
           var oData = oModel.getData();
@@ -123,6 +127,7 @@ sap.ui.define(
             return;
           }
 
+          // Validación de campos requeridos
           var labelPayload = {
             LABELID: oData.LABELID,
             LABEL: oData.LABEL,
@@ -169,12 +174,14 @@ sap.ui.define(
           }
         },
 
+        // Método para cancelar la adición de un nuevo catálogo
         onCancelAddCatalog: function () {
           if (this._oAddDialog) {
             this._oAddDialog.close();
           }
         },
 
+        // Método para abrir el diálogo de edición de un registro
         onEditPressed: function () {
           if (!this._oSelectedItem) return;
 
@@ -201,6 +208,7 @@ sap.ui.define(
           }
         },
 
+        // Método para guardar los cambios realizados en la edición de un registro
         onSaveEdit: async function () {
           var oEditModel = this.getView().getModel("editModel");
           var oEditedData = oEditModel.getData();
@@ -208,6 +216,7 @@ sap.ui.define(
           var oTableModel = this.getView().getModel();
           var aData = oTableModel.getProperty("/value") || [];
 
+          // Prepara el payload para la actualización
           var payload = {
             labelid: oEditedData.LABELID,
             label: {
@@ -224,6 +233,7 @@ sap.ui.define(
             },
           };
 
+          // Ejecuta la petición para actualizar el label
           try {
             const envRes = await fetch("env.json");
             const env = await envRes.json();
@@ -245,10 +255,12 @@ sap.ui.define(
             MessageToast.show("Registro actualizado correctamente");
             this._oEditDialog.close();
 
+            // Actualiza el modelo de la tabla con los nuevos datos
             var updatedIndex = aData.findIndex(
               (item) => item.LABELID === oEditedData.LABELID
             );
 
+            // Si se encuentra el índice, actualiza el registro
             if (updatedIndex !== -1) {
               aData[updatedIndex] = {
                 ...aData[updatedIndex],
@@ -257,6 +269,7 @@ sap.ui.define(
               };
               oTableModel.setProperty("/value", aData);
 
+              // Selecciona el ítem actualizado en la tabla
               var oTable = this.byId("catalogTable");
               var oItems = oTable.getItems();
               var oItemToSelect = oItems.find(item => {
@@ -274,12 +287,14 @@ sap.ui.define(
           }
         },
 
+        // Método para cancelar la edición de un registro
         onCancelEdit: function () {
           if (this._oEditDialog) {
             this._oEditDialog.close();
           }
         },
 
+        // Método para manejar la eliminación de un registro
         onDeletePressed: async function () {
           if (!this._oSelectedItem) return;
 
@@ -353,14 +368,17 @@ sap.ui.define(
           }
         },
 
+        // Método para manejar la activación de un registro
         onActivatePressed: function () {
           this._changeStatus(true);
         },
 
+        // Método para manejar la desactivación de un registro
         onDeactivatePressed: function () {
           this._changeStatus(false);
         },
 
+        // Método para cambiar el estado de un registro (activar/desactivar)
         _changeStatus: async function (bActivate) {
           if (!this._oSelectedItem) {
             console.log("No hay ítem seleccionado");
@@ -421,6 +439,7 @@ sap.ui.define(
           }
         },
 
+        // Método para cargar los valores asociados a un LABELID
         loadValuesByLabelId: async function (labelId) {
           try {
             const envRes = await fetch("env.json");
@@ -445,6 +464,7 @@ sap.ui.define(
           }
         },
 
+        // Método para manejar el cambio de selección en la tabla
         onSelectionChange: function (oEvent) {
           var oTable = oEvent.getSource();
           var oSelectedItem = oTable.getSelectedItem();
@@ -520,6 +540,7 @@ sap.ui.define(
           }
         },
 
+        // Método para manejar la selección de un item en la lista de valores
         onItemSelect: function (oEvent) {
           var oSelectedItem = oEvent.getParameter("listItem");
           var oContext = oSelectedItem.getBindingContext("values");
@@ -530,6 +551,7 @@ sap.ui.define(
           oValuesModel.setProperty("/selectedValue", oSelectedData);
         },
 
+        // Método para colapsar el panel derecho al 0% y expandir el izquierdo
         onCloseDetailPanel: function () {
           var oSplitter = this.byId("mainSplitter");
           var oDetailPanel = this.byId("detailPanel");
@@ -544,6 +566,7 @@ sap.ui.define(
           }
         },
 
+        // Método para centrar el panel derecho al 50% y el izquierdo al 50%
         onCenterDetailPanel: function () {
           var oSplitter = this.byId("mainSplitter");
           var oDetailPanel = this.byId("detailPanel");
@@ -558,6 +581,7 @@ sap.ui.define(
           }
         },
 
+        // Método para expandir el panel derecho al 100% y colapsar el izquierdo
         onExpandDetailPanel: function () {
           var oSplitter = this.byId("mainSplitter");
           var oDetailPanel = this.byId("detailPanel");

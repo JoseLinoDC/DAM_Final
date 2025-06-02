@@ -49,7 +49,7 @@ sap.ui.define([
             this.loadValues();
         },
 
-
+        // Método para cargar las etiquetas desde la API
         _loadLabels: function () {
             var oView = this.getView();
             var oValuesModel = oView.getModel("values");
@@ -71,7 +71,7 @@ sap.ui.define([
             });
         },
 
-
+        // Método para abrir el diálogo de valores
         openValueDialog: function (ruta) {
             var oView = this.getView();
             this._loadLabels();
@@ -96,6 +96,7 @@ sap.ui.define([
             }
         },
 
+        // Método para abrir el diálogo de añadir valores
         onAddValues: function () {
             var oView = this.getView();
             var oLabelsModel = oView.getModel("labels");
@@ -117,6 +118,7 @@ sap.ui.define([
             this.openValueDialog("AddValueDialog");
         },
 
+        // Método para abrir el diálogo de edición de valores
         onEditValue: function () {
             const oSel = this.getView().getModel("values").getProperty("/selectedValue") || {};
 
@@ -137,6 +139,7 @@ sap.ui.define([
             this.openValueDialog("EditValueDialog");
         },
 
+        // Método para abrir el diálogo de selección de valores
         onItemSelect: function (oEvent) {
             var oData = oEvent.getParameter("listItem").getBindingContext("values").getObject();
             var oVals = this.getView().getModel("values");
@@ -144,6 +147,7 @@ sap.ui.define([
             oVals.setProperty("/selectedValueIn", true);
         },
 
+        // Método cargar los values desde la API
         loadValues: function () {
             var oView = this.getView(), oModel = oView.getModel("values");
             oView.setBusy(true);
@@ -163,6 +167,7 @@ sap.ui.define([
             });
         },
 
+        // Método para cargar los valores filtrados por LABELID
         loadValuesByLabelId: function (labelid) {
             var oView = this.getView();
             var oValuesModel = oView.getModel("values");
@@ -191,6 +196,7 @@ sap.ui.define([
             });
         },
 
+        // Métodos para manejar los cambios en los ComboBox de LABELID y VALUEID
         onLabelIdChange: function (oEvent) {
             var selectedLabelId = oEvent.getParameter("selectedItem").getKey();
             var oModel = this.getView().getModel("newValueModel");
@@ -199,6 +205,7 @@ sap.ui.define([
             this.loadValuesByLabelId(selectedLabelId);
         },
 
+        // Método para manejar el cambio en el ComboBox de VALUEID
         onValueIdComboBoxChange: function (oEvent) {
             var oModel = this.getView().getModel("newValueModel");
             var selectedValueId = oEvent.getParameter("selectedItem").getKey();
@@ -206,10 +213,11 @@ sap.ui.define([
 
         },
 
-
+        // Método para guardar los valores
         onSaveValues: function () {
             var oView = this.getView(), oForm = oView.getModel("newValueModel").getData();
 
+            // Validación de campos obligatorios
             var labelAux = oForm.SELECTED_LABELID;
             var valueAux = oForm.SELECTED_VALUEID;
             if (labelAux && valueAux) {
@@ -230,6 +238,7 @@ sap.ui.define([
                 oForm.DETAIL_ROW.ACTIVED = bSwitchState.getState();
             }
 
+            // Validación de campos adicionales
             oView.setBusy(true);
             var allowedFields = [
                 "VALUEID",
@@ -241,6 +250,7 @@ sap.ui.define([
                 "LABELID",
                 "DETAIL_ROW"
             ];
+            // Filtrar los campos permitidos
             var oPayload = {};
             allowedFields.forEach(function (field) {
                 if (oForm[field] !== undefined) {
@@ -248,6 +258,7 @@ sap.ui.define([
                 }
             });
 
+            // Preparar la URL y el método según el modo (CREATE o EDIT)
             var url, method, body;
             if (oForm.mode === "CREATE") {
                 url = this.env.API_VALUES_URL_BASE + "view";
@@ -259,6 +270,7 @@ sap.ui.define([
                 body = JSON.stringify({ valueid: oForm.VALUEID, value: oPayload });
             }
 
+            // Realizar la llamada AJAX para guardar el valor
             $.ajax({
                 url: url,
                 method: method,
@@ -280,6 +292,7 @@ sap.ui.define([
             });
         },
 
+        // Método para manejar el cambio en el filtro de búsqueda
         onFilterChange: function (oEvent) {
             var sQuery = oEvent.getParameter("newValue").toLowerCase();
             var oTable = this.byId("valuesTable");
@@ -318,18 +331,22 @@ sap.ui.define([
             });
         },
 
+        // Métodos para activar y desactivar valores
         onActivateValue: function () { this._toggleActive(true); },
         onDeactivateValue: function () { this._toggleActive(false); },
 
+        // Método para activar o desactivar un valor
         _toggleActive: function (bActivate) {
             var oSel = this.getView().getModel("values").getProperty("/selectedValue");
             if (!oSel) {
                 MessageToast.show("Selecciona un valor primero");
                 return;
             }
+            // Verifica si el valor ya está en el estado deseado
             var payload = { valueid: oSel.VALUEID, reguser: oSel.VALUEID };
             var sUrl = this.env.API_VALUES_URL_BASE + (bActivate ? "activateValue" : "deactivateValue");
 
+            // Si el valor ya está en el estado deseado, no hacemos nada
             this.getView().setBusy(true);
             $.ajax({
                 url: sUrl,
@@ -349,6 +366,7 @@ sap.ui.define([
             });
         },
 
+        // Método para eliminar un valor permanentemente
         onDeleteValue: function () {
             var oSel = this.getView().getModel("values").getProperty("/selectedValue");
             if (!oSel) {
@@ -382,6 +400,7 @@ sap.ui.define([
             });
         },
 
+        // Métodos para manejar el diálogo de valores
         onCancelDialog: function () {
             if (this._oDialog) {
                 this._oDialog.close();
@@ -391,6 +410,7 @@ sap.ui.define([
             });
         },
 
+        // Método para cancelar la acción de añadir o editar valores
         onCancelValues: function () {
             const oDialog = this.byId("addValueDialog");
             if (oDialog) {
@@ -398,6 +418,7 @@ sap.ui.define([
             }
         },
 
+        // Método para cancelar la acción de editar valores
         onEditCancelValue: function () {
             const oDialog = this.byId("editDialogValue");
             if (oDialog) {
@@ -405,6 +426,7 @@ sap.ui.define([
             }
         },
 
+        // Método para manejar el cambio del switch de activación
         onSwitchChange: function (oEvent) {
             var bState = oEvent.getParameter("state");
             this.getView().getModel("newValueModel").setProperty("/DETAIL_ROW/ACTIVED", bState);
