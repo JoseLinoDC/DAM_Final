@@ -67,13 +67,14 @@
                     <Label text="Rango de Rentabilidad (%)" />
                     <RangeSlider
                         id="profitRangeFilter"
-                        min="-100"
-                        max="100"
+                        min="{historyModel>/minProfit}"
+                        max="{historyModel>/maxProfit}"
+                        value="{historyModel>/filters/profitRange}"
                         step="5"
                         width="100%"
                         showAdvancedTooltip="true"
                         enableTickmarks="true"
-                        change=".onFilterChange"
+                        liveChange=".onFilterChange"
                     />
                 </f:SimpleForm>
             </VBox>

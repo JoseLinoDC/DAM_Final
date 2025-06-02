@@ -826,8 +826,8 @@ sap.ui.define(
         formatDate: function (oDate) {
           return oDate
             ? DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" }).format(
-                oDate
-              )
+              oDate
+            )
             : null;
         },
 
@@ -1190,11 +1190,17 @@ sap.ui.define(
               _fullRecord: item,
             }));
 
-            // Calcula el total filtrado (puedes agregar lógica de filtros aquí si lo necesitas)
-            // ...existing code...
+
+            // Calculo para el rango de inversión del historial de estrategias simuladas
             const amounts = strategies.map(s => s.amount || 0);
             const minAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
             const maxAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
+
+            // Calculo para el rango de rentabilidad del historial de estrategias simuladas
+            const profits = strategies.map(s => s.result || 0);
+            const minProfit = profits.length > 0 ? Math.min(...profits) : 0;
+            const maxProfit = profits.length > 0 ? Math.max(...profits) : 0;
+
 
             // Asegúrate que el valor inicial del slider sea el rango completo
             const oData = {
@@ -1208,7 +1214,7 @@ sap.ui.define(
               filters: {
                 dateRange: null,
                 investmentRange: [minAmount, maxAmount],
-                profitRange: [-100, 100],
+                profitRange: [minProfit, maxProfit],
               },
             };
             // ...existing code...
@@ -1227,11 +1233,10 @@ sap.ui.define(
           }
         },
 
+        
         onLoadStrategy: function () {
-          // Usa el mismo fragmentName que usas en onHistoryPress
-          const FRAGMENT_ID =
-            "com.invertions.sapfiorimodinv.view.investments.fragments.InvestmentHistoryPanel";
-          const oTable = sap.ui.core.Fragment.byId(FRAGMENT_ID, "historyTable");
+          // Busca la tabla directamente en el core
+          const oTable = sap.ui.getCore().byId("historyTable");
           if (!oTable) {
             MessageToast.show("Tabla de historial no encontrada.");
             return;
@@ -1243,20 +1248,15 @@ sap.ui.define(
             return;
           }
 
-          const oSelectedContext =
-            aSelectedItems[0].getBindingContext("historyModel");
+          const oSelectedContext = aSelectedItems[0].getBindingContext("historyModel");
           if (!oSelectedContext) {
-            MessageToast.show(
-              "No se pudo obtener el contexto del seleccionado."
-            );
+            MessageToast.show("No se pudo obtener el contexto del seleccionado.");
             return;
           }
 
           const oSelectedStrategy = oSelectedContext.getObject();
           if (!oSelectedStrategy || !oSelectedStrategy._fullRecord) {
-            MessageToast.show(
-              "No se encontró el registro completo de la simulación."
-            );
+            MessageToast.show("No se encontró el registro completo de la simulación.");
             return;
           }
 
@@ -1345,10 +1345,6 @@ sap.ui.define(
               new JSONModel(historySummary),
               "historySummaryModel"
             );
-            //   status: "Completado",
-            //   amount: sim.AMOUNT || 0,
-            //   _fullRecord: sim
-            // }));
 
             const amounts = historyData.map(item => item.amount || 0);
             const minAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
@@ -1686,7 +1682,11 @@ sap.ui.define(
                       body: JSON.stringify({ simulationIds: aSelectedIds }),
                     });
                     const result = await response.json();
-                    if (result.success) {
+                    console.log("Respuesta backend:", result);
+                    if (
+                      (result.success === true) ||
+                      (result.value && result.value.success === true)
+                    ) {
                       MessageToast.show("Simulaciones eliminadas correctamente.");
                       // Recarga el historial
                       this.onHistoryPress();
@@ -1695,7 +1695,7 @@ sap.ui.define(
                     }
                   } catch (e) {
                     MessageBox.error("Error al eliminar simulaciones.");
-                    console.error(e);
+                    // console.error(e);
                   }
                 }
               },
@@ -1754,12 +1754,16 @@ sap.ui.define(
           const oModel = this.getView().getModel("historyModel");
           const aAllStrategies = oModel.getProperty("/allStrategies") || [];
 
-          // 1. Calcular los rangos reales basados en los datos
+          // 1. Calcular los rangos reales basados en TODOS los datos
           const amounts = aAllStrategies.map(item => item.amount || 0);
           const minPossibleAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
           const maxPossibleAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
 
-          // 2. Obtener el rango actual del slider DESDE EL EVENTO si existe
+          const profits = aAllStrategies.map(item => item.result || 0);
+          const minProfit = profits.length > 0 ? Math.min(...profits) : 0;
+          const maxProfit = profits.length > 0 ? Math.max(...profits) : 0;
+
+          // 2. Obtener el rango de inversión del slider
           let aInvestmentRange;
           if (
             oEvent &&
@@ -1767,7 +1771,6 @@ sap.ui.define(
             oEvent.getSource().getId &&
             oEvent.getSource().getId().includes("investmentRangeFilter")
           ) {
-            // El valor correcto viene en "range" para RangeSlider
             aInvestmentRange = oEvent.getParameter("range");
             if (!Array.isArray(aInvestmentRange)) {
               aInvestmentRange = [minPossibleAmount, maxPossibleAmount];
@@ -1778,35 +1781,53 @@ sap.ui.define(
               [minPossibleAmount, maxPossibleAmount];
           }
 
-          // 3. Asegurar que el rango no exceda los límites posibles
+          // 3. Obtener el rango de rentabilidad del slider
+          let aProfitRange = oModel.getProperty("/filters/profitRange") || [minProfit, maxProfit];
+          if (
+            oEvent &&
+            oEvent.getSource &&
+            oEvent.getSource().getId &&
+            oEvent.getSource().getId().includes("profitRangeFilter")
+          ) {
+            aProfitRange = oEvent.getParameter("range");
+            if (!Array.isArray(aProfitRange)) {
+              aProfitRange = [minProfit, maxProfit];
+            }
+          }
+
+          // 4. Validar límites de inversión
           aInvestmentRange = [
             Math.max(minPossibleAmount, aInvestmentRange[0]),
             Math.min(maxPossibleAmount, aInvestmentRange[1])
           ];
 
-          // 4. Asegurar que haya un rango mínimo razonable (1000 unidades de diferencia)
+          // 5. Validar rango mínimo de inversión (1000 unidades)
           const MIN_RANGE = 1000;
           if (aInvestmentRange[1] - aInvestmentRange[0] < MIN_RANGE) {
-            // Ajustar el rango mínimo manteniendo el máximo si es posible
             if (aInvestmentRange[1] - MIN_RANGE >= minPossibleAmount) {
               aInvestmentRange[0] = aInvestmentRange[1] - MIN_RANGE;
-            }
-            // Ajustar el rango máximo manteniendo el mínimo si es posible
-            else if (aInvestmentRange[0] + MIN_RANGE <= maxPossibleAmount) {
+            } else if (aInvestmentRange[0] + MIN_RANGE <= maxPossibleAmount) {
               aInvestmentRange[1] = aInvestmentRange[0] + MIN_RANGE;
-            }
-            // Si no es posible mantener el rango mínimo, usar los límites totales
-            else {
+            } else {
               aInvestmentRange = [minPossibleAmount, maxPossibleAmount];
             }
           }
 
-          // 5. Actualizar el modelo con los nuevos valores
+          // 6. Validar límites de rentabilidad
+          aProfitRange = [
+            Math.max(minProfit, aProfitRange[0]),
+            Math.min(maxProfit, aProfitRange[1])
+          ];
+
+          // 7. Actualizar el modelo con los nuevos valores de rango y límites
           oModel.setProperty("/minAmount", minPossibleAmount);
           oModel.setProperty("/maxAmount", maxPossibleAmount);
           oModel.setProperty("/filters/investmentRange", aInvestmentRange);
+          oModel.setProperty("/minProfit", minProfit);
+          oModel.setProperty("/maxProfit", maxProfit);
+          oModel.setProperty("/filters/profitRange", aProfitRange);
 
-          // 6. Filtrar los datos
+          // 8. Filtrar los datos
           const oDateRange = sap.ui.getCore().byId("dateRangeFilter");
           const oDateValue = oDateRange?.getDateValue();
           const oSecondDateValue = oDateRange?.getSecondDateValue();
@@ -1815,6 +1836,8 @@ sap.ui.define(
             const start = item.details?.STARTDATE;
             const end = item.details?.ENDDATE;
             const amount = item.amount || 0;
+            const result = item.result || 0;
+            const profitOk = result >= aProfitRange[0] && result <= aProfitRange[1];
 
             // Filtro de fechas
             let dateOk = true;
@@ -1826,24 +1849,63 @@ sap.ui.define(
             // Filtro de monto
             const amountOk = amount >= aInvestmentRange[0] && amount <= aInvestmentRange[1];
 
-            return dateOk && amountOk;
+            return dateOk && amountOk && profitOk;
           });
 
-          // 7. Actualizar la vista
+          // 9. Actualizar la vista
           oModel.setProperty("/filteredCount", aFiltered.length);
           oModel.setProperty("/strategies", aFiltered);
-
-          // console.log("Rango actualizado:", {
-          //   minPossible: minPossibleAmount,
-          //   maxPossible: maxPossibleAmount,
-          //   currentRange: aInvestmentRange,
-          //   filteredCount: aFiltered.length
-          // });
         },
-        
+
         onCloseHistoryPopover: function () {
           if (this._oHistoryPopover && this._oHistoryPopover.isOpen()) {
             this._oHistoryPopover.close();
+          }
+
+          // Restablecer filtros y búsqueda a valores predeterminados
+          const oModel = this.getView().getModel("historyModel");
+          if (oModel) {
+            // Restaurar estrategias filtradas a todas
+            const aAllStrategies = oModel.getProperty("/allStrategies") || [];
+            oModel.setProperty("/strategies", aAllStrategies);
+            oModel.setProperty("/filteredCount", aAllStrategies.length);
+            oModel.setProperty("/selectedCount", 0);
+            oModel.setProperty("/selectedIds", []);
+            oModel.setProperty("/isDeleteMode", false);
+
+            // Restaurar filtros a sus valores iniciales
+            oModel.setProperty("/filters", {
+              dateRange: null,
+              investmentRange: [oModel.getProperty("/minAmount") || 0, oModel.getProperty("/maxAmount") || 10000],
+              profitRange: [oModel.getProperty("/minProfit") || 0, oModel.getProperty("/maxProfit") || 0]
+            });
+
+            // Limpiar búsqueda
+            const oSearchField = sap.ui.getCore().byId("searchField1");
+            if (oSearchField) {
+              oSearchField.setValue("");
+            }
+
+            // Limpiar filtros avanzados
+            const oDateRange = sap.ui.getCore().byId("dateRangeFilter");
+            if (oDateRange) {
+              oDateRange.setDateValue(null);
+              oDateRange.setSecondDateValue(null);
+            }
+            const oInvestmentSlider = sap.ui.getCore().byId("investmentRangeFilter");
+            if (oInvestmentSlider) {
+              oInvestmentSlider.setValue([oModel.getProperty("/minAmount") || 0, oModel.getProperty("/maxAmount") || 10000]);
+            }
+            const oProfitSlider = sap.ui.getCore().byId("profitRangeFilter");
+            if (oProfitSlider) {
+              oProfitSlider.setValue([oModel.getProperty("/minProfit") || 0, oModel.getProperty("/maxProfit") || 0]);
+            }
+
+            // Ocultar panel de filtros avanzados
+            const oPanel = sap.ui.getCore().byId("advancedFiltersPanel");
+            if (oPanel) {
+              oPanel.setVisible(false);
+            }
           }
         },
 
