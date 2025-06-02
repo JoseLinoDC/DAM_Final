@@ -41,12 +41,18 @@ async function SimulateMomentum(req) {
   try {
     response = await axios.get(APIURL);
   } catch (error) {
-    return { status: 500, message: "Error al obtener datos del mercado: " + error.message };
+    return {
+      status: 500,
+      message: "Error al obtener datos del mercado: " + error.message,
+    };
   }
 
   const data = response.data["Time Series (Daily)"];
   if (!data) {
-    return { status: 500, message: "Datos no disponibles para el símbolo solicitado." };
+    return {
+      status: 500,
+      message: "Datos no disponibles para el símbolo solicitado.",
+    };
   }
 
   const parsedData = Object.entries(data).map(([date, values]) => ({
@@ -507,8 +513,6 @@ async function SimulateMomentum(req) {
   };
 } //SImulacion Momentum
 
-
-
 /// ---------RESTO DE ESTRATEGIAS ------
 
 async function simulateSupertrend(req) {
@@ -576,7 +580,7 @@ async function simulateSupertrend(req) {
     }
 
     //Se realiza la consulta de los historicos a AlphaVantage
-    const apiKey = process.env.ALPHA_VANTAGE_KEY || "demo";
+    // const apiKey = process.env.ALPHA_VANTAGE_KEY || "demo";
     const apiUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
     const resp = await axios.get(apiUrl);
 
@@ -660,6 +664,10 @@ async function simulateSupertrend(req) {
     const chartData = [];
 
     for (let i = MALENGTH; i < prices.length; i++) {
+      if (prices.length < MALENGTH) { // Verifica si hay suficientes datos para la simulación
+        throw new Error("No hay suficientes datos para la simulación.");
+      }
+
       const bar = prices[i];
       const close = bar.CLOSE;
       const trendUp = close > ma[i];
@@ -1229,16 +1237,16 @@ function calculateMovingAverageData(
         short_ma:
           shortSlice.length >= shortMa
             ? shortSlice.reduce(
-              (sum, p) => (p && p.close ? sum + p.close : sum),
-              0
-            ) / shortMa
+                (sum, p) => (p && p.close ? sum + p.close : sum),
+                0
+              ) / shortMa
             : null,
         long_ma:
           longSlice.length >= longMa
             ? longSlice.reduce(
-              (sum, p) => (p && p.close ? sum + p.close : sum),
-              0
-            ) / longMa
+                (sum, p) => (p && p.close ? sum + p.close : sum),
+                0
+              ) / longMa
             : null,
       };
     })
@@ -1641,8 +1649,9 @@ async function SimulateIronCondor(simulation) {
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = simulation;
 
   const numR = Math.floor(Math.random() * 1000).toString();
-  const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${USERID[0]
-    }-${numR}`;
+  const SIMULATIONID = `${SYMBOL}-${new Date().toISOString().slice(0, 10)}-${
+    USERID[0]
+  }-${numR}`;
   const SIMULATIONNAME = `Iron Condor-${numR}`;
   const STRATEGYID = "IC";
 
@@ -1670,9 +1679,10 @@ async function SimulateIronCondor(simulation) {
   const width = specs.WIDTH || 5;
   const premium = specs.PREMIUM || 2;
   const rsiPeriod = specs.RSI_PERIOD || 14;
-  const rsiMin = specs.RSI_MIN || 40;
-  const rsiMax = specs.RSI_MAX || 60;
-  const volThreshold = specs.VOL_THRESHOLD || 1000000;
+  const rsiMin = specs.RSI_MIN || 30;
+  const rsiMax = specs.RSI_MAX || 70;
+  const volThreshold = specs.VOL_THRESHOLD || 100000;
+
   const expiryDays = specs.EXPIRY_DAYS || 5;
 
   const API_URL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;

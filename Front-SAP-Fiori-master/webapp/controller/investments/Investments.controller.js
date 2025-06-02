@@ -70,7 +70,7 @@ sap.ui.define(
 
           // 5. Initialize Strategy Analysis Model
           var oStrategyAnalysisModelData = {
-            balance: 1000,
+            balance: 50000,
             stock: 1,
             longSMA: 200,
             shortSMA: 50,
@@ -78,7 +78,6 @@ sap.ui.define(
             startDate: null,
             endDate: null,
             controlsVisible: false,
-<<<<<<< Updated upstream
             // Campos específicos para la estrategia Momentum
             shortEMA: 21, // Default EMA corta
             longEMA: 50, // Default EMA larga
@@ -90,7 +89,7 @@ sap.ui.define(
             rsiPeriod: 14,
             rsiMin: 40,
             rsiMax: 60,
-            volThreshold: 1000000,
+            volThreshold: 100,
             expiryDays: 5,
 
             strategies: [
@@ -100,21 +99,6 @@ sap.ui.define(
               { key: "Supertrend", text: "Supertrend" },
               { key: "Momentum", text: "Momentum" },
               { key: "IronCondor", text: "Iron Condor" },
-=======
-            width: 1,
-            premium: 0,
-            rsiPeriod: 14,
-            rsiMin: 30,
-            rsiMax: 70,
-            volThreshold: 10000,
-            expiryDays: 30,
-            strategies: [
-              { key: "", text: "Cargando textos..." }, // Placeholder for i18n
-              { key: "MACrossover", text: "Cargando textos..." },
-              { key: "Reversión Simple", text: "Cargando textos..." },
-              { key: "Supertrend", text: "Cargando textos..." },
-              { key: "IronCondor", text: "Cargando textos..." }
->>>>>>> Stashed changes
             ],
 
             // IMPORTANT: Initialize as an ARRAY of strings for VizFrame FeedItem
@@ -124,7 +108,7 @@ sap.ui.define(
           var oStrategyAnalysisModel = new JSONModel(
             oStrategyAnalysisModelData
           );
-          
+
           this.getView().setModel(
             oStrategyAnalysisModel,
             "strategyAnalysisModel"
@@ -650,7 +634,7 @@ sap.ui.define(
               },
               {
                 INDICATOR: "VOL_THRESHOLD",
-                VALUE: oStrategyModel.getProperty("/volThreshold") || 1000000,
+                VALUE: oStrategyModel.getProperty("/volThreshold") || 100000,
               },
               {
                 INDICATOR: "EXPIRY_DAYS",
@@ -728,6 +712,7 @@ sap.ui.define(
                 REAL_PROFIT: oSummary.REAL_PROFIT || 0,
                 PERCENTAGE_RETURN: oSummary.PERCENTAGE_RETURN || 0,
               });
+
               oResultModel.refresh(true);
               this._buildDynamicDataset();
               if (oVizFrame) {
@@ -755,8 +740,8 @@ sap.ui.define(
         formatDate: function (oDate) {
           return oDate
             ? DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" }).format(
-              oDate
-            )
+                oDate
+              )
             : null;
         },
 
@@ -899,10 +884,6 @@ sap.ui.define(
           } else {
             oStrategyAnalysisModel.setProperty("/chartMeasuresFeed", []);
           }
-
-          console.log(
-            "📊 Dataset y chartMeasuresFeed actualizados dinámicamente."
-          );
         },
 
         _buildDynamicDataset: function () {
@@ -923,7 +904,7 @@ sap.ui.define(
           oVizFrame.destroyDataset();
 
           if (aChartData.length === 0) {
-            console.warn("No hay datos de chart_data para crear el dataset");
+            // console.warn("No hay datos de chart_data para crear el dataset");
             return;
           }
 
@@ -973,7 +954,7 @@ sap.ui.define(
           );
 
           oVizFrame.invalidate(); // Forzar redibujado
-          console.log("Dataset y feeds dinámicos actualizados:", aKeys);
+          // console.log("Dataset y feeds dinámicos actualizados:", aKeys);
         },
 
         /**
@@ -1007,28 +988,57 @@ sap.ui.define(
          * Updates the ViewModel with selected point's data.
          * @param {sap.ui.base.Event} oEvent The event object
          */
+
+        //Esta función maneja la selección de un punto de datos en el gráfico
+        //y muestra un popover con los detalles del punto seleccionado.
+        //El popover muestra la fecha, el valor alto (HIGH) y el número de fila del punto seleccionado.
+        //El popover se reutiliza si ya existe, actualizando su contenido en lugar de crear uno nuevo.
+        //El popover se muestra cerca del punto seleccionado en el gráfico.
         onDataPointSelect: function (oEvent) {
           const oData = oEvent.getParameter("data");
           console.log("Datos seleccionados:", oData);
 
           if (oData && oData.length > 0) {
             const oSelectedData = oData[0];
-            console.log("Datos del punto seleccionado:", oSelectedData);
+            const sFecha = new Date(oSelectedData.data.Fecha);
+            const sMeasureName = oSelectedData.data.measureNames; // <- Medida seleccionada
+            const fValue = oSelectedData.data[sMeasureName]; // <- Valor dinámico
+            const iRowNumber = oSelectedData.data._context_row_number;
 
-            const sFecha = oSelectedData.data.DATE_GRAPH; // This should be a Date object
-            const fPrecioCierre = oSelectedData.data.CLOSE;
-
-            if (sFecha && fPrecioCierre !== undefined) {
-              const oViewModel = this.getView().getModel("viewModel");
-              oViewModel.setProperty("/selectedPoint", {
-                DATE: sFecha,
-                CLOSE: fPrecioCierre,
+            if (!this._oDataPointPopover) {
+              this._oDataPointPopover = new sap.m.Popover({
+                title: "Detalles del Punto",
+                content: [
+                  new sap.m.VBox({
+                    items: [
+                      new sap.m.Text({
+                        text: "Fecha: " + sFecha.toLocaleDateString(),
+                      }),
+                      new sap.m.Text({ text: sMeasureName + ": " + fValue }),
+                      new sap.m.Text({ text: "Fila: " + iRowNumber }),
+                    ],
+                  }),
+                ],
+                placement: sap.m.PlacementType.Auto,
+                showHeader: true,
               });
+              this.getView().addDependent(this._oDataPointPopover);
             } else {
-              console.warn(
-                "Los datos seleccionados no contienen DATE_GRAPH o CLOSE."
+              const oVBox = this._oDataPointPopover.getContent()[0];
+              oVBox.removeAllItems();
+              oVBox.addItem(
+                new sap.m.Text({
+                  text: "Fecha: " + sFecha.toLocaleDateString(),
+                })
               );
+              oVBox.addItem(
+                new sap.m.Text({ text: sMeasureName + ": " + fValue })
+              );
+              oVBox.addItem(new sap.m.Text({ text: "Fila: " + iRowNumber }));
             }
+
+            const oDomRef = oSelectedData.target;
+            this._oDataPointPopover.openBy(oDomRef);
           } else {
             console.warn("No se seleccionaron datos.");
           }
@@ -1193,35 +1203,53 @@ sap.ui.define(
             const data = await res.json();
             const simulations = data.value || [];
 
-            console.log("Simulaciones cargadas:", simulations);
-
-            // Transforma los datos para el modelo de historial
             const historyData = simulations.map((sim) => ({
               date: new Date(sim.START_DATE),
               strategyName: sim.IDSTRATEGY,
               symbol: sim.SYMBOL,
               result: sim.SUMMARY?.REAL_PROFIT ?? 0,
-              status: "Completado",
-              _fullRecord: sim, // Guarda el registro completo por si lo necesitas
+              _fullRecord: sim,
             }));
 
-            this.getView()
-              .getModel("historyModel")
-              .setData({
-                values: historyData,
-                filteredCount: simulations.length,
-                selectedCount: 0,
-                filters: {
-                  dateRange: null,
-                  investmentRange: [0, 10000],
-                  profitRange: [-100, 100],
-                },
-              });
+            // Calcular resumen general
+            let totalInitialCash = 0;
+            let totalBought = 0;
+            let totalSold = 0;
+            let totalFinalBalance = 0;
+            let totalProfit = 0;
+            let totalPercentage = 0;
 
-            // Si hay simulaciones, puedes cargar la primera en el gráfico
-            if (simulations.length > 0) {
-              this._loadSimulationData(simulations[0]);
-            }
+            simulations.forEach((sim) => {
+              const summary = sim.SUMMARY || {};
+              totalInitialCash += 50000; // o el valor inicial definido
+              totalBought += summary.TOTAL_BOUGHT_UNITS || 0;
+              totalSold += summary.TOTAL_SOLD_UNITS || 0;
+              totalFinalBalance += summary.FINAL_BALANCE || 0;
+              totalProfit += summary.REAL_PROFIT || 0;
+              totalPercentage += summary.PERCENTAGE_RETURN || 0;
+            });
+
+            const historySummary = {
+              totalSimulations: simulations.length,
+              totalInitialCash: totalInitialCash,
+              totalBought: totalBought,
+              totalSold: totalSold,
+              totalFinalBalance: totalFinalBalance,
+              totalProfit: totalProfit,
+              totalPercentage:
+                simulations.length > 0
+                  ? (totalPercentage / simulations.length).toFixed(2)
+                  : 0,
+            };
+
+            this.getView().setModel(
+              new JSONModel({ values: historyData }),
+              "historyModel"
+            );
+            this.getView().setModel(
+              new JSONModel(historySummary),
+              "historySummaryModel"
+            );
           } catch (e) {
             console.error("Error cargando simulaciones:", e);
             MessageBox.error("Error al cargar el historial de simulaciones");
