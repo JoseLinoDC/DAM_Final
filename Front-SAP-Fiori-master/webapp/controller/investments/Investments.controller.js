@@ -527,18 +527,72 @@ sap.ui.define(
          * @param {sap.ui.base.Event} oEvent The event object
          */
         onStrategyChange: function (oEvent) {
-          var oStrategyAnalysisModel = this.getView().getModel(
+          const oView = this.getView();
+          const oStrategyAnalysisModel = oView.getModel(
             "strategyAnalysisModel"
           );
-          var sSelectedKey = oEvent.getParameter("selectedItem").getKey();
+          const sSelectedKey = oEvent.getParameter("selectedItem").getKey();
+
+          // Actualizar el estado de los controles visibles
           oStrategyAnalysisModel.setProperty(
             "/controlsVisible",
             !!sSelectedKey
           );
-          // Update strategyKey in the model
           oStrategyAnalysisModel.setProperty("/strategyKey", sSelectedKey);
+
+          // Lógica para establecer SPECS por defecto según la estrategia seleccionada
+          let defaultSpecs = [];
+          switch (sSelectedKey) {
+            case "Momentum":
+              defaultSpecs = [
+                { INDICATOR: "shortEMA", VALUE: 21 },
+                { INDICATOR: "longEMA", VALUE: 50 },
+                { INDICATOR: "rsiMomentum", VALUE: 14 },
+                { INDICATOR: "adxMomentum", VALUE: 14 },
+              ];
+              break;
+
+            case "idST":
+              defaultSpecs = [
+                { INDICATOR: "MA_LENGTH", VALUE: 20 },
+                { INDICATOR: "ATR", VALUE: 10 },
+                { INDICATOR: "MULT", VALUE: 2.0 },
+                { INDICATOR: "RR", VALUE: 1.5 },
+              ];
+              break;
+            case "STRATEGY_001":
+              defaultSpecs = [
+                { INDICATOR: "RSI", VALUE: 14 },
+                { INDICATOR: "SMA", VALUE: 5 },
+              ];
+              break;
+            case "IdCM":
+              defaultSpecs = [
+                { INDICATOR: "SHORT_MA", VALUE: 50 },
+                { INDICATOR: "LONG_MA", VALUE: 200 },
+              ];
+              break;
+            case "IC":
+              defaultSpecs = [
+                { INDICATOR: "WIDTH", VALUE: 5 },
+                { INDICATOR: "PREMIUM", VALUE: 2 },
+                { INDICATOR: "RSI_PERIOD", VALUE: 14 },
+                { INDICATOR: "RSI_MIN", VALUE: 30 },
+                { INDICATOR: "RSI_MAX", VALUE: 70 },
+                { INDICATOR: "VOL_THRESHOLD", VALUE: 100000 },
+                { INDICATOR: "EXPIRY_DAYS", VALUE: 5 },
+              ];
+              break;
+            default:
+              defaultSpecs = [];
+              break;
+          }
+
+          // Establecer SPECS predeterminados en el modelo para que el usuario pueda editarlos
+          oStrategyAnalysisModel.setProperty("/specs", defaultSpecs);
+
+          // Actualizar el gráfico o cualquier otro componente dependiente
           this._updateChartMeasuresFeed();
-          // Call function to update chart measures feed based on new strategy
         },
 
         /**
@@ -547,12 +601,13 @@ sap.ui.define(
          * It also triggers the update of chart measures feed after data is loaded.
          */
         onRunAnalysisPress: function () {
-          var oView = this.getView();
-          var oStrategyModel = oView.getModel("strategyAnalysisModel");
-          var oResultModel = oView.getModel("strategyResultModel");
-          var oVizFrame = this.byId("idVizFrame");
+          const oView = this.getView();
+          const oStrategyModel = oView.getModel("strategyAnalysisModel");
+          const oResultModel = oView.getModel("strategyResultModel");
+          const oVizFrame = this.byId("idVizFrame");
+          const sSymbol = oView.byId("symbolSelector").getSelectedKey();
 
-          var sSymbol = oView.byId("symbolSelector").getSelectedKey();
+          // Validación de selección de estrategia y símbolo
           if (!oStrategyModel.getProperty("/strategyKey")) {
             MessageBox.warning("Seleccione una estrategia");
             return;
@@ -562,102 +617,113 @@ sap.ui.define(
             return;
           }
 
-          let apiStrategyName = oStrategyModel.getProperty("/strategyKey");
-          if (apiStrategyName === "Reversión Simple")
-            apiStrategyName = "reversionsimple";
-          else if (apiStrategyName === "Supertrend")
-            apiStrategyName = "supertrend";
-          else if (apiStrategyName === "Momentum") apiStrategyName = "momentum";
-          else if (apiStrategyName === "IronCondor")
-            apiStrategyName = "ironcondor";
+          // Mapeo de nombres de estrategia a rutas de API
+          const strategyMap = {
+            MACrossover: "macrossover",
+            ReversiónSimple: "reversionsimple",
+            SuperTrend: "supertrend",
+            Momentum: "momentum",
+            IronCondor: "ironcondor",
+          };
 
-          var SPECS = [];
-          if (apiStrategyName === "supertrend") {
-            SPECS = [
-              {
-                INDICATOR: "ma_length",
-                VALUE: oStrategyModel.getProperty("/longSMA") || 20,
-              },
-              {
-                INDICATOR: "atr",
-                VALUE: oStrategyModel.getProperty("/atr") || 10,
-              },
-              {
-                INDICATOR: "mult",
-                VALUE: oStrategyModel.getProperty("/mult") || 2.0,
-              },
-              {
-                INDICATOR: "rr",
-                VALUE: oStrategyModel.getProperty("/rr") || 1.5,
-              },
-            ];
-          } else if (apiStrategyName === "momentum") {
-            SPECS = [
-              {
-                INDICATOR: "shortEMA",
-                VALUE: oStrategyModel.getProperty("/shortEMA") || 21,
-              },
-              {
-                INDICATOR: "longEMA",
-                VALUE: oStrategyModel.getProperty("/longEMA") || 50,
-              },
-              {
-                INDICATOR: "rsiMomentum",
-                VALUE: oStrategyModel.getProperty("/rsiMomentum") || 14,
-              },
-              {
-                INDICATOR: "adxMomentum",
-                VALUE: oStrategyModel.getProperty("/adxMomentum") || 14,
-              },
-            ];
-          } else if (apiStrategyName === "ironcondor") {
-            SPECS = [
-              {
-                INDICATOR: "WIDTH",
-                VALUE: oStrategyModel.getProperty("/width") || 5,
-              },
-              {
-                INDICATOR: "PREMIUM",
-                VALUE: oStrategyModel.getProperty("/premium") || 2,
-              },
-              {
-                INDICATOR: "RSI_PERIOD",
-                VALUE: oStrategyModel.getProperty("/rsiPeriod") || 14,
-              },
-              {
-                INDICATOR: "RSI_MIN",
-                VALUE: oStrategyModel.getProperty("/rsiMin") || 40,
-              },
-              {
-                INDICATOR: "RSI_MAX",
-                VALUE: oStrategyModel.getProperty("/rsiMax") || 60,
-              },
-              {
-                INDICATOR: "VOL_THRESHOLD",
-                VALUE: oStrategyModel.getProperty("/volThreshold") || 100000,
-              },
-              {
-                INDICATOR: "EXPIRY_DAYS",
-                VALUE: oStrategyModel.getProperty("/expiryDays") || 5,
-              },
-            ];
-          } else if (
-            apiStrategyName === "reversionsimple" ||
-            apiStrategyName === "macrossover"
-          ) {
-            SPECS = [
-              {
-                INDICATOR: "SHORT_MA",
-                VALUE: oStrategyModel.getProperty("/shortSMA") || 50,
-              },
-              {
-                INDICATOR: "LONG_MA",
-                VALUE: oStrategyModel.getProperty("/longSMA") || 200,
-              },
-            ];
-          }
+          let apiStrategyName =
+            strategyMap[oStrategyModel.getProperty("/strategyKey")] ||
+            "supertrend"; // fallback a supertrend
 
-          var oRequestBody = {
+          // Construcción del SPECS según la estrategia seleccionada
+          const getSpecs = (strategy) => {
+            switch (strategy) {
+              case "supertrend":
+                return [
+                  {
+                    INDICATOR: "ma_length",
+                    VALUE: oStrategyModel.getProperty("/longSMA") || 20,
+                  },
+                  {
+                    INDICATOR: "atr",
+                    VALUE: oStrategyModel.getProperty("/atr") || 10,
+                  },
+                  {
+                    INDICATOR: "mult",
+                    VALUE: oStrategyModel.getProperty("/mult") || 2.0,
+                  },
+                  {
+                    INDICATOR: "rr",
+                    VALUE: oStrategyModel.getProperty("/rr") || 1.5,
+                  },
+                ];
+              case "momentum":
+                return [
+                  {
+                    INDICATOR: "SHORT_EMA",
+                    VALUE: oStrategyModel.getProperty("/shortEMA") || 21,
+                  },
+                  {
+                    INDICATOR: "LONG_EMA",
+                    VALUE: oStrategyModel.getProperty("/longEMA") || 50,
+                  },
+                  {
+                    INDICATOR: "RSI",
+                    VALUE: oStrategyModel.getProperty("/rsiMomentum") || 14,
+                  },
+                  {
+                    INDICATOR: "ADX",
+                    VALUE: oStrategyModel.getProperty("/adxMomentum") || 14,
+                  },
+                ];
+              case "ironcondor":
+                return [
+                  {
+                    INDICATOR: "WIDTH",
+                    VALUE: oStrategyModel.getProperty("/width") || 5,
+                  },
+                  {
+                    INDICATOR: "PREMIUM",
+                    VALUE: oStrategyModel.getProperty("/premium") || 2,
+                  },
+                  {
+                    INDICATOR: "RSI_PERIOD",
+                    VALUE: oStrategyModel.getProperty("/rsiPeriod") || 14,
+                  },
+                  {
+                    INDICATOR: "RSI_MIN",
+                    VALUE: oStrategyModel.getProperty("/rsiMin") || 40,
+                  },
+                  {
+                    INDICATOR: "RSI_MAX",
+                    VALUE: oStrategyModel.getProperty("/rsiMax") || 60,
+                  },
+                  {
+                    INDICATOR: "VOL_THRESHOLD",
+                    VALUE:
+                      oStrategyModel.getProperty("/volThreshold") || 100000,
+                  },
+                  {
+                    INDICATOR: "EXPIRY_DAYS",
+                    VALUE: oStrategyModel.getProperty("/expiryDays") || 5,
+                  },
+                ];
+              case "reversionsimple":
+              case "macrossover":
+                return [
+                  {
+                    INDICATOR: "SHORT_MA",
+                    VALUE: oStrategyModel.getProperty("/shortSMA") || 50,
+                  },
+                  {
+                    INDICATOR: "LONG_MA",
+                    VALUE: oStrategyModel.getProperty("/longSMA") || 200,
+                  },
+                ];
+              default:
+                return []; // fallback a lista vacía
+            }
+          };
+
+          const SPECS = getSpecs(apiStrategyName);
+
+          // Construcción del objeto request
+          const oRequestBody = {
             SIMULATION: {
               SYMBOL: sSymbol,
               STARTDATE: this.formatDate(
@@ -689,11 +755,13 @@ sap.ui.define(
                 MessageBox.warning("No se recibieron datos de la simulación.");
                 return;
               }
+
               const aChartData = this._prepareTableData(
                 simulation.CHART_DATA || [],
                 simulation.SIGNALS || []
               );
               const oSummary = simulation.SUMMARY || {};
+
               oResultModel.setData({
                 hasResults: true,
                 chart_data: aChartData,
@@ -719,6 +787,7 @@ sap.ui.define(
                 oVizFrame.setModel(oResultModel, "strategyResultModel");
                 oVizFrame.invalidate();
               }
+
               MessageToast.show(
                 `Se añadieron $${(oSummary.REAL_PROFIT || 0).toFixed(
                   2
@@ -1281,7 +1350,7 @@ sap.ui.define(
             );
 
             if (simulationsForSymbol.length === 0) {
-              sap.m.MessageToast.show(
+              MessageToast.show(
                 `No se encontraron simulaciones para ${sSelectedSymbol}`
               );
               return;

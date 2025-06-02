@@ -2,11 +2,13 @@ const SimulationModel = require("../models/mongodb/simulations");
 const axios = require("axios");
 require("dotenv").config(); //para usar el .env despues
 // const API_KEY = "7NONLRJ6ARKI0BA4";
-const API_KEY = "4NCHFPILY0107FYG"; 
+const API_KEY = "4NCHFPILY0107FYG";
 
-async function SimulateMomentum(req) {
-  const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
-  console.log(req);
+async function SimulateMomentum(body) {
+  // const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
+  const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
+
+  console.log(body);
   const numR = Math.floor(Math.random() * 1000).toString();
   //GENERAR ID pa' la estrategia
   const idStrategy = (symbol, usuario) => {
@@ -516,11 +518,11 @@ async function SimulateMomentum(req) {
 
 /// ---------RESTO DE ESTRATEGIAS ------
 
-async function simulateSupertrend(req) {
-  console.log(req);
+async function simulateSupertrend(body) {
+  console.log(body);
 
   try {
-    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
+    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
 
     if (!SYMBOL || !STARTDATE || !ENDDATE || !AMOUNT || !USERID) {
       throw new Error(
@@ -665,7 +667,8 @@ async function simulateSupertrend(req) {
     const chartData = [];
 
     for (let i = MALENGTH; i < prices.length; i++) {
-      if (prices.length < MALENGTH) { // Verifica si hay suficientes datos para la simulación
+      if (prices.length < MALENGTH) {
+        // Verifica si hay suficientes datos para la simulación
         throw new Error("No hay suficientes datos para la simulación.");
       }
 
@@ -813,17 +816,14 @@ async function simulateSupertrend(req) {
   }
 }
 
-async function reversionSimple(req) {
-  console.log(req);
+async function reversionSimple(body) {
+  console.log(body);
   //Permite que la simulación se ejecute tanto en un entorno de simulación como en un entorno real.
   //Si se está ejecutando en un entorno de simulación, usa req.SIMULATION; de lo contrario, usa req directamente.
-  const simulation = req.SIMULATION || req;
   try {
-    // Desestructuración de los parámetros requeridos del objeto de solicitud.
-    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } =
-      simulation || {};
-
-    // Validación de la presencia de todos los parámetros esenciales.
+    // Adaptado para soportar distintos formatos (SIMULATION, req.body, o req directo)
+    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
+    console.log("Simulación Reversión Simple:", body);
     if (!SYMBOL || !STARTDATE || !ENDDATE || AMOUNT === undefined || !USERID) {
       throw new Error(
         "FALTAN PARÁMETROS REQUERIDOS EN EL CUERPO DE LA SOLICITUD: 'SYMBOL', 'STARTDATE', 'ENDDATE', 'AMOUNT', 'USERID'."
@@ -858,8 +858,8 @@ async function reversionSimple(req) {
 
     // Configuración de la API de Alpha Vantage.
     // Asegúrate de tener 'axios' importado en tu entorno (ej. const axios = require('axios'); o import axios from 'axios';)
-    const APIKEY = "demo"; // Clave API de demostración, considera usar una clave real y segura para producción.
-    const APIURL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${APIKEY}`;
+    // const APIKEY = "demo"; // Clave API de demostración, considera usar una clave real y segura para producción.
+    const APIURL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
 
     // Realiza la solicitud HTTP para obtener datos históricos.
     const RESPONSE = await axios.get(APIURL);
@@ -1408,220 +1408,220 @@ function parseSpecs(specsArray) {
 }
 async function SimulateMACrossover(body) {
   try {
-    // Versión adaptada al controlador existente
-    // body ya es el objeto SIMULATION que viene del controlador
-    const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
-
-    // Validación de parámetros
-    const requiredFields = [
-      "SYMBOL",
-      "STARTDATE",
-      "ENDDATE",
-      "AMOUNT",
-      "USERID",
-      "SPECS",
-    ];
-    const missingFields = requiredFields.filter((field) => !body[field]);
-
-    if (missingFields.length > 0) {
-      throw new Error(
-        `Faltan campos requeridos en SIMULATION: ${missingFields.join(", ")}`
-      );
-    }
-
-    // Obtener datos históricos
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
-    const response = await axios.get(url);
-
-    if (!response.data || !response.data["Time Series (Daily)"]) {
-      throw new Error("Invalid data format from Alpha Vantage API");
-    }
-
-    const timeSeries = response.data["Time Series (Daily)"];
-
-    // Procesar datos históricos
-    let history = Object.entries(timeSeries)
-      .map(([date, data]) => {
-        if (!data || !data["4. close"]) {
-          console.warn(`Datos incompletos para la fecha ${date}`);
-          return null;
-        }
-        return {
-          date: new Date(date),
-          open: parseFloat(data["1. open"]),
-          high: parseFloat(data["2. high"]),
-          low: parseFloat(data["3. low"]),
-          close: parseFloat(data["4. close"]),
-          volume: parseInt(data["5. volume"]),
-        };
-      })
-      .filter((item) => item !== null)
-      .sort((a, b) => a.date - b.date);
-
-    if (history.length === 0) {
-      throw new Error("No valid historical data found");
-    }
-
-    // Parsear especificaciones
-    const { SHORT_MA: shortMa, LONG_MA: longMa } = parseSpecs(SPECS);
-
-    // Calcular medias móviles y señales
-    const { priceData, signals } = calculateMovingAverageData(
-      history,
-      STARTDATE,
-      ENDDATE,
-      shortMa,
-      longMa
-    );
-
-    // Simular transacciones
-    let currentCash = AMOUNT;
-    let sharesHeld = 0;
-    let totalBought = 0;
-    let totalSold = 0;
-
-    const processedSignals = signals
-      .map((signal) => {
-        if (signal.type === "buy" && currentCash > 0) {
-          const shares = currentCash / signal.price;
-          sharesHeld += shares;
-          totalBought += shares;
-          currentCash = 0;
-
-          return {
-            DATE: signal.date,
-            TYPE: "buy",
-            PRICE: signal.price,
-            REASONING: signal.reasoning,
-            SHARES: shares,
-          };
-        } else if (signal.type === "sell" && sharesHeld > 0) {
-          const proceeds = sharesHeld * signal.price;
-          totalSold += sharesHeld;
-          currentCash += proceeds;
-          const shares = sharesHeld;
-          sharesHeld = 0;
-
-          return {
-            DATE: signal.date,
-            TYPE: "sell",
-            PRICE: signal.price,
-            REASONING: signal.reasoning,
-            SHARES: shares,
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-
-    // Cerrar posición final si queda algo abierto
-    if (sharesHeld > 0) {
-      const lastPrice = priceData[priceData.length - 1].close;
-      const proceeds = sharesHeld * lastPrice;
-      totalSold += sharesHeld;
-      currentCash += proceeds;
-
-      processedSignals.push({
-        DATE: priceData[priceData.length - 1].date,
-        TYPE: "sell",
-        PRICE: lastPrice,
-        REASONING: "Final position closed at end of period",
-        SHARES: sharesHeld,
-      });
-
-      sharesHeld = 0;
-    }
-
-    // Calcular métricas finales
-    const finalValue = sharesHeld * priceData[priceData.length - 1].close;
-    const finalBalance = currentCash + finalValue;
-    const profit = finalBalance - AMOUNT;
-    const percentageReturn = (profit / AMOUNT) * 100;
-
-    // Formatear datos para el gráfico
-    const chartData = priceData.map((item) => ({
-      DATE: item.date,
-      OPEN: item.open,
-      HIGH: item.high,
-      LOW: item.low,
-      CLOSE: item.close,
-      VOLUME: item.volume,
-      INDICATORS: [
-        { INDICATOR: "short_ma", VALUE: item.short_ma },
-        { INDICATOR: "long_ma", VALUE: item.long_ma },
-      ],
-    }));
-
-    // Formatear SPECS como string
-    const formattedSpecs = [
-      { INDICATOR: "SHORT_MA", VALUE: shortMa },
-      { INDICATOR: "LONG_MA", VALUE: longMa },
-    ];
-
-    // Crear objeto de simulación
-    const simulationData = {
-      SIMULATIONID: `${SYMBOL}_${new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .replace("T", "_")}`,
-      USERID,
-      STRATEGYID: "IdCM",
-      SIMULATIONNAME: `MA Crossover ${shortMa}/${longMa}`,
-      SYMBOL,
-      STARTDATE: new Date(STARTDATE),
-      ENDDATE: new Date(ENDDATE),
-      AMOUNT,
-      SIGNALS: processedSignals,
-      SPECS: formattedSpecs,
-      SUMMARY: {
-        TOTAL_BOUGHT_UNITS: totalBought,
-        TOTAL_SOLDUNITS: totalSold,
-        REMAINING_UNITS: sharesHeld,
-        FINAL_CASH: currentCash,
-        FINAL_VALUE: finalValue,
-        FINAL_BALANCE: finalBalance,
-        REAL_PROFIT: profit,
-        PERCENTAGE_RETURN: percentageReturn,
-      },
-      CHART_DATA: chartData,
-      DETAIL_ROW: {
-        ACTIVED: true,
-        DELETED: false,
-        DETAIL_ROW_REG: [
-          {
-            CURRENT: true,
-            REGDATE: new Date(),
-            REGTIME: new Date().toTimeString().split(" ")[0],
-            REGUSER: USERID,
-          },
-        ],
-      },
-    };
-
-    // Guardar en MongoDB
-
     try {
-      const nuevaSimulacion = new SimulationModel(simulationData);
-      await nuevaSimulacion.save();
-      console.log("Simulacion guardada en la base de datos.");
-      //console.log(nuevaSimulacion);
-    } catch (error) {
-      return {
-        status: 500,
-        message: error.message,
+      const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = body;
+      // Validación de parámetros
+      const requiredFields = [
+        "SYMBOL",
+        "STARTDATE",
+        "ENDDATE",
+        "AMOUNT",
+        "USERID",
+        "SPECS",
+      ];
+      const missingFields = requiredFields.filter((field) => !body[field]);
+
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Faltan campos requeridos en SIMULATION: ${missingFields.join(", ")}`
+        );
+      }
+
+      // Obtener datos históricos
+      const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
+      const response = await axios.get(url);
+
+      if (!response.data || !response.data["Time Series (Daily)"]) {
+        throw new Error("Invalid data format from Alpha Vantage API");
+      }
+
+      const timeSeries = response.data["Time Series (Daily)"];
+
+      // Procesar datos históricos
+      let history = Object.entries(timeSeries)
+        .map(([date, data]) => {
+          if (!data || !data["4. close"]) {
+            console.warn(`Datos incompletos para la fecha ${date}`);
+            return null;
+          }
+          return {
+            date: new Date(date),
+            open: parseFloat(data["1. open"]),
+            high: parseFloat(data["2. high"]),
+            low: parseFloat(data["3. low"]),
+            close: parseFloat(data["4. close"]),
+            volume: parseInt(data["5. volume"]),
+          };
+        })
+        .filter((item) => item !== null)
+        .sort((a, b) => a.date - b.date);
+
+      if (history.length === 0) {
+        throw new Error("No valid historical data found");
+      }
+
+      // Parsear especificaciones
+      const { SHORT_MA: shortMa, LONG_MA: longMa } = parseSpecs(SPECS);
+
+      // Calcular medias móviles y señales
+      const { priceData, signals } = calculateMovingAverageData(
+        history,
+        STARTDATE,
+        ENDDATE,
+        shortMa,
+        longMa
+      );
+
+      // Simular transacciones
+      let currentCash = AMOUNT;
+      let sharesHeld = 0;
+      let totalBought = 0;
+      let totalSold = 0;
+
+      const processedSignals = signals
+        .map((signal) => {
+          if (signal.type === "buy" && currentCash > 0) {
+            const shares = currentCash / signal.price;
+            sharesHeld += shares;
+            totalBought += shares;
+            currentCash = 0;
+
+            return {
+              DATE: signal.date,
+              TYPE: "buy",
+              PRICE: signal.price,
+              REASONING: signal.reasoning,
+              SHARES: shares,
+            };
+          } else if (signal.type === "sell" && sharesHeld > 0) {
+            const proceeds = sharesHeld * signal.price;
+            totalSold += sharesHeld;
+            currentCash += proceeds;
+            const shares = sharesHeld;
+            sharesHeld = 0;
+
+            return {
+              DATE: signal.date,
+              TYPE: "sell",
+              PRICE: signal.price,
+              REASONING: signal.reasoning,
+              SHARES: shares,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      // Cerrar posición final si queda algo abierto
+      if (sharesHeld > 0) {
+        const lastPrice = priceData[priceData.length - 1].close;
+        const proceeds = sharesHeld * lastPrice;
+        totalSold += sharesHeld;
+        currentCash += proceeds;
+
+        processedSignals.push({
+          DATE: priceData[priceData.length - 1].date,
+          TYPE: "sell",
+          PRICE: lastPrice,
+          REASONING: "Final position closed at end of period",
+          SHARES: sharesHeld,
+        });
+
+        sharesHeld = 0;
+      }
+
+      // Calcular métricas finales
+      const finalValue = sharesHeld * priceData[priceData.length - 1].close;
+      const finalBalance = currentCash + finalValue;
+      const profit = finalBalance - AMOUNT;
+      const percentageReturn = (profit / AMOUNT) * 100;
+
+      // Formatear datos para el gráfico
+      const chartData = priceData.map((item) => ({
+        DATE: item.date,
+        OPEN: item.open,
+        HIGH: item.high,
+        LOW: item.low,
+        CLOSE: item.close,
+        VOLUME: item.volume,
+        INDICATORS: [
+          { INDICATOR: "short_ma", VALUE: item.short_ma },
+          { INDICATOR: "long_ma", VALUE: item.long_ma },
+        ],
+      }));
+
+      // Formatear SPECS como string
+      const formattedSpecs = [
+        { INDICATOR: "SHORT_MA", VALUE: shortMa },
+        { INDICATOR: "LONG_MA", VALUE: longMa },
+      ];
+
+      // Crear objeto de simulación
+      const simulationData = {
+        SIMULATIONID: `${SYMBOL}_${new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")
+          .replace("T", "_")}`,
+        USERID,
+        STRATEGYID: "IdCM",
+        SIMULATIONNAME: `MA Crossover ${shortMa}/${longMa}`,
+        SYMBOL,
+        STARTDATE: new Date(STARTDATE),
+        ENDDATE: new Date(ENDDATE),
+        AMOUNT,
+        SIGNALS: processedSignals,
+        SPECS: formattedSpecs,
+        SUMMARY: {
+          TOTAL_BOUGHT_UNITS: totalBought,
+          TOTAL_SOLDUNITS: totalSold,
+          REMAINING_UNITS: sharesHeld,
+          FINAL_CASH: currentCash,
+          FINAL_VALUE: finalValue,
+          FINAL_BALANCE: finalBalance,
+          REAL_PROFIT: profit,
+          PERCENTAGE_RETURN: percentageReturn,
+        },
+        CHART_DATA: chartData,
+        DETAIL_ROW: {
+          ACTIVED: true,
+          DELETED: false,
+          DETAIL_ROW_REG: [
+            {
+              CURRENT: true,
+              REGDATE: new Date(),
+              REGTIME: new Date().toTimeString().split(" ")[0],
+              REGUSER: USERID,
+            },
+          ],
+        },
       };
+
+      // Guardar en MongoDB
+
+      try {
+        const nuevaSimulacion = new SimulationModel(simulationData);
+        await nuevaSimulacion.save();
+        console.log("Simulacion guardada en la base de datos.");
+        //console.log(nuevaSimulacion);
+      } catch (error) {
+        return {
+          status: 500,
+          message: error.message,
+        };
+      }
+      return simulationData;
+    } catch (e) {
+      console.error("Error in SimulateMACrossover:", {
+        message: e.message,
+        stack: e.stack,
+        inputBody: body,
+      });
     }
-    return simulationData;
-  } catch (e) {
-    console.error("Error in SimulateMACrossover:", {
-      message: e.message,
-      stack: e.stack,
-      inputBody: body,
-    });
-    throw new Error(`Simulation failed: ${e.message}`);
+  } catch (error) {
+    console.error("Error in SimulateMACrossover:", error);
+    throw new Error(`Simulacion fallida: ${error.message}`);
   }
 }
-
 
 // Función para calcular el RSI (Relative Strength Index) con un enfoque optimizado IronCondor
 function calculateRSI2(data, period = 14) {
@@ -1649,6 +1649,9 @@ function calculateRSI2(data, period = 14) {
 
 //Simulacion IronCondor
 async function SimulateIronCondor(simulation) {
+  if (!simulation || typeof simulation !== "object") {
+    throw new Error("Invalid or missing simulation data.");
+  }
   const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = simulation;
 
   const numR = Math.floor(Math.random() * 1000).toString();

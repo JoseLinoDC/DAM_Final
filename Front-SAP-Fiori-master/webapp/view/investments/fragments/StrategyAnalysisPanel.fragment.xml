@@ -250,7 +250,7 @@
                         <StepInput
                             value="{strategyAnalysisModel>/volThreshold}"
                             min="1"
-                            step="1000"
+                            step="10"
                             width="100%"
                             visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
                         />
