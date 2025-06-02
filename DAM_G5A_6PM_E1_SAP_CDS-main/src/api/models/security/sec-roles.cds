@@ -22,6 +22,8 @@ entity RolePrivileges {
   key ROLEID      : Association to Roles;
   key PROCESSID   : String(50);
   key PRIVILEGEID : String(50);
+  key APLICATIONID  : String(50);
+  key VIEWID        : String(50);
 }
 
 entity UserRoles {

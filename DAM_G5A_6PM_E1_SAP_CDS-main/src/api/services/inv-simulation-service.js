@@ -1806,6 +1806,7 @@ async function SimulateIronCondor(simulation) {
     const nuevaSimulacion = new SimulationModel(simulacion);
     await nuevaSimulacion.save();
     console.log("Simulación Iron Condor guardada correctamente.");
+    return simulacion;
   } catch (error) {
     console.error("Error al guardar en MongoDB:", error.message);
     return { status: 500, message: error.message };

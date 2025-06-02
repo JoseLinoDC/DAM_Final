@@ -26,7 +26,9 @@ const auditDetailSchema = new mongoose.Schema({
 // Subesquema para la relación de privilegios
 const privilegeSchema = new mongoose.Schema({
   PROCESSID:   { type: String, required: true },
-  PRIVILEGEID: { type: String, required: true }
+  PRIVILEGEID: { type: String, required: true },
+  APLICATIONID:  { type: String, required: true },
+  VIEWID: { type: String, required: true }
 }, { _id: false });
 
 // Esquema principal de Roles

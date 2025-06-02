@@ -286,46 +286,35 @@ sap.ui.define(
           var oContext = this._oSelectedItem.getBindingContext();
           var oData = oContext.getObject();
 
-          MessageBox.confirm("¿Está seguro de eliminar este registro?", {
-            actions: [MessageBox.Action.YES, MessageBox.Action.NO],
-            onClose: async function (sAction) {
-              if (sAction === MessageBox.Action.YES) {
-                try {
-                  const envRes = await fetch("env.json");
-                  const env = await envRes.json();
-                  const url = env.API_VALUES_URL_BASE + "getLabelById?labelid=" + encodeURIComponent(oData.LABELID);
+          try {
+            const envRes = await fetch("env.json");
+            const env = await envRes.json();
+            const url = env.API_VALUES_URL_BASE + "getLabelById?labelid=" + encodeURIComponent(oData.LABELID);
 
-                  // Consulta los values asociados a este LABELID
-                  const res = await fetch(url);
-                  let hasValues = false;
-                  if (res.ok) {
-                    const data = await res.json();
-                    hasValues = Array.isArray(data.value) && data.value.length > 0;
-                  }
+            // Consulta los values asociados a este LABELID
+            const res = await fetch(url);
+            let hasValues = false;
+            if (res.ok) {
+              const data = await res.json();
+              hasValues = Array.isArray(data.value) && data.value.length > 0;
+            }
 
-                  if (hasValues) {
-                    // Si tiene values, pide confirmación extra
-                    MessageBox.confirm(
-                      "Este catálogo contiene valores asociados. ¿Está seguro de eliminar el catálogo y TODOS sus valores?",
-                      {
-                        actions: [MessageBox.Action.YES, MessageBox.Action.NO],
-                        onClose: async function (sAction2) {
-                          if (sAction2 === MessageBox.Action.YES) {
-                            await this._deleteLabelAndRefresh(oData);
-                          }
-                        }.bind(this),
-                      }
-                    );
-                  } else {
-                    // Si no tiene values, elimina directamente
-                    await this._deleteLabelAndRefresh(oData);
-                  }
-                } catch (error) {
-                  MessageToast.show("Error al verificar valores: " + error.message);
+            let sMessage = "¿Está seguro de eliminar este registro?";
+            if (hasValues) {
+              sMessage += "\n\n⚠️ Se eliminarán de este catálogo TODOS los valores asociados.";
+            }
+
+            MessageBox.confirm(sMessage, {
+              actions: [MessageBox.Action.YES, MessageBox.Action.NO],
+              onClose: async function (sAction) {
+                if (sAction === MessageBox.Action.YES) {
+                  await this._deleteLabelAndRefresh(oData);
                 }
-              }
-            }.bind(this),
-          });
+              }.bind(this),
+            });
+          } catch (error) {
+            MessageToast.show("Error al verificar valores: " + error.message);
+          }
         },
 
         // Agrega este método privado en tu controlador:

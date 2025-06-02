@@ -109,9 +109,17 @@ async function GetRoleById(ID) {
             };
           }
 
+          let applicationId = null;
+          let applicationName = null;
+          if (viewValue && viewValue.VALUEPAID) {
+            const appIdMatch = viewValue.VALUEPAID.match(/IdApplication-(.*)/);
+            applicationId = appIdMatch?.[1] || null;
+          }
+
           // Caso 5: Éxito - retornar información completa
           return {
             ...privilege,
+            APLICATIONID: privilege.APLICATIONID || applicationId,
             processInfo: {
               name: processValue.VALUE || privilege.PROCESSID,
               description: processValue.DESCRIPTION || 'Sin descripción',
