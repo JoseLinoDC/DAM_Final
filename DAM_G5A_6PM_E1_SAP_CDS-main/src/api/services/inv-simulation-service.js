@@ -75,6 +75,7 @@ async function SimulateMomentum(body) {
       return itemdate >= startDate && itemdate <= endDate;
     });
   }
+  
   function calculateEMA(data, period, key = "CLOSE") {
     const k = 2 / (period + 1);
     let emaArray = [];

@@ -88,7 +88,6 @@ sap.ui.define(
           // 5. Initialize Strategy Analysis Model
           var oStrategyAnalysisModelData = {
             balance: 50000,
-            balance: 50000,
             stock: 1,
             longSMA: 200,
             shortSMA: 50,
@@ -754,7 +753,7 @@ sap.ui.define(
             },
           };
 
-          console.log("Enviando solicitud con:", oRequestBody);
+          // console.log("Enviando solicitud con:", oRequestBody);
 
           fetch(
             `http://localhost:3333/api/security/inversions/simulation?strategy=${apiStrategyName}`,
@@ -768,24 +767,29 @@ sap.ui.define(
               response.ok ? response.json() : Promise.reject(response)
             )
             .then((data) => {
-              const simulation = data.value?.[0];
-              if (!simulation) {
+              const simulationData = data.value?.[0]?.simulacion;
+
+              if (!simulationData) {
                 MessageBox.warning("No se recibieron datos de la simulación.");
                 return;
               }
 
-              const aChartData = this._prepareTableData(
-                simulation.CHART_DATA || [],
-                simulation.SIGNALS || []
-              );
-              const oSummary = simulation.SUMMARY || {};
+              // Extraer datos sin procesar
+              const chartData = Array.isArray(simulationData.CHART_DATA) ? simulationData.CHART_DATA : [];
+              const signals = Array.isArray(simulationData.SIGNALS) ? simulationData.SIGNALS : [];
+
+              // Ahora tienes acceso directo a ellos para cualquier uso adicional
+
+
+              const aChartData = this._prepareTableData(chartData, signals);
+              const oSummary = simulationData.SUMMARY || {};
 
               oResultModel.setData({
                 hasResults: true,
                 chart_data: aChartData,
-                signals: simulation.SIGNALS || [],
+                signals: signals,
                 result: oSummary.REAL_PROFIT || 0,
-                simulationName: simulation.SIMULATIONNAME || apiStrategyName,
+                simulationName: simulationData.SIMULATIONNAME || apiStrategyName,
                 symbol: sSymbol,
                 startDate: oStrategyModel.getProperty("/startDate"),
                 endDate: oStrategyModel.getProperty("/endDate"),
@@ -800,7 +804,7 @@ sap.ui.define(
               });
 
               oResultModel.refresh(true);
-              this._buildDynamicDataset();
+
               if (oVizFrame) {
                 oVizFrame.setModel(oResultModel, "strategyResultModel");
                 oVizFrame.invalidate();
