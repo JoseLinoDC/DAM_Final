@@ -264,7 +264,7 @@
                             visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
                         />
 
-                         <VBox width="48%">
+                         <VBox width="100%">
                             <Label
                                 text="{i18n>shortEMAPeriodLabelText}"
                                 visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
@@ -278,7 +278,7 @@
                                 visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
                             />
                         </VBox>
-                        <VBox width="48%">
+                        <VBox width="100%">
                             <Label
                                 text="{i18n>longEMAPeriodLabelText}"
                                 visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
@@ -318,7 +318,7 @@
                                 visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
                             />
                         </VBox>
-                        
+
                         <Button
                             id="runAnalysisButtonInFragment"
                             text="{i18n>runAnalysisButtonText}"
