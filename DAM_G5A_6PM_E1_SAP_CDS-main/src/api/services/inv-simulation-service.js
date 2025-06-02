@@ -2,8 +2,8 @@ const SimulationModel = require("../models/mongodb/simulations");
 const axios = require("axios");
 require("dotenv").config(); //para usar el .env despues
 // const API_KEY = "7NONLRJ6ARKI0BA4";
-// const API_KEY = "4NCHFPILY0107FYG";
-const API_KEY = "HJ168GZFTJ5G77U5";
+const API_KEY = "4NCHFPILY0107FYG";
+// const API_KEY = "HJ168GZFTJ5G77U5";
 
 async function SimulateMomentum(body) {
   // const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
@@ -75,7 +75,7 @@ async function SimulateMomentum(body) {
       return itemdate >= startDate && itemdate <= endDate;
     });
   }
-  
+
   function calculateEMA(data, period, key = "CLOSE") {
     const k = 2 / (period + 1);
     let emaArray = [];
@@ -1933,6 +1933,40 @@ async function SimulateIronCondor(simulation) {
   const FINAL_BALANCE = Number(AMOUNT) + totalProfit;
   const PERCENTAGE_RETURN =
     ((FINAL_BALANCE - Number(AMOUNT)) / Number(AMOUNT)) * 100;
+
+  // const simulacion = {
+  //   SIMULATIONID,
+  //   USERID,
+  //   STRATEGYID,
+  //   SIMULATIONNAME,
+  //   SYMBOL,
+  //   STARTDATE,
+  //   ENDDATE,
+  //   AMOUNT,
+  //   SPECS,
+  //   SIGNALS: trades,
+  //   SUMMARY: {
+  //     TOTAL_BOUGHT_UNITS: 0,
+  //     TOTAL_SOLD_UNITS: 0,
+  //     REMAINING_UNITS: 0,
+  //     FINAL_CASH: FINAL_BALANCE,
+  //     FINAL_VALUE: 0,
+  //     FINAL_BALANCE: FINAL_BALANCE,
+  //     REAL_PROFIT: totalProfit,
+  //     PERCENTAGE_RETURN: PERCENTAGE_RETURN,
+  //   },
+  // };
+  // try {
+  //   const nuevaSimulacion = new SimulationModel(simulacion);
+  //   await nuevaSimulacion.save();
+  //   console.log("Simulacion guardada en la base de datos.");
+  //   console.log(nuevaSimulacion);
+  // } catch (error) {
+  //   return {
+  //     status: 500,
+  //     message: error.message,
+  //   };
+  // }
 
   return {
     SIMULATIONID,
