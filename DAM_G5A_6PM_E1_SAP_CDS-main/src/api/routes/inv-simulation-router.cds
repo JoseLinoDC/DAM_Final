@@ -18,5 +18,8 @@ service InversionsRoutes @(path: '/api/security/inversions') {
     @path            : 'getSimulationById'
     function getSimulationById(simulationId: String) returns simulations;
 
+    @Core.Description: 'Eliminar una o varias simulaciones por SIMULATIONID'
+    @path            : 'deleteSimulations'
+    action deleteSimulations(simulationIds: array of String) returns Boolean;
 
 }

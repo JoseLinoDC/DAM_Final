@@ -1,59 +1,70 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
-    xmlns:f="sap.ui.layout.form">
+    xmlns:f="sap.ui.layout.form"
+>
     <ResponsivePopover
         title="Historial de Estrategias Simuladas"
         placement="Bottom"
         showHeader="true"
         contentWidth="1100px"
         contentHeight="500px"
-        class="">
+        class=""
+    >
         <content>
             <!-- Barra de búsqueda y filtros -->
             <OverflowToolbar class="">
                 <SearchField
                     id="searchField1"
                     placeholder="Buscar por nombre o símbolo..."
-                    search=".onSearch"
+                    liveChange=".onSearch"
                     width="300px"
-                    showSearchButton="true"/>
-                <ToolbarSpacer/>
+                    showSearchButton="true"
+                />
+                <ToolbarSpacer />
                 <Button
                     icon="sap-icon://filter"
                     text="Filtros Avanzados"
                     type="Transparent"
-                    press=".onToggleAdvancedFilters"/>
+                    press=".onToggleAdvancedFilters"
+                />
             </OverflowToolbar>
 
             <!-- Panel de Filtros Avanzados -->
-            <VBox id="advancedFiltersPanel" visible="false" class="sapUiSmallMarginBottom">
+            <VBox
+                id="advancedFiltersPanel"
+                visible="false"
+                class="sapUiSmallMarginBottom"
+            >
                 <f:SimpleForm
                     editable="true"
                     layout="ResponsiveGridLayout"
                     labelSpanXL="5"
                     labelSpanL="5"
                     labelSpanM="5"
-                    labelSpanS="12">
-                    
-                    <Label text="Rango de Fechas"/>
+                    labelSpanS="12"
+                >
+                    <Label text="Rango de Fechas" />
                     <DateRangeSelection
                         id="dateRangeFilter"
-                        change=".onFilterChange"/>
-                    
-                    <Label text="Rango de Inversión ($)"/>
+                        change=".onFilterChange"
+                    />
+
+                    <Label text="Rango de Inversión ($)" />
                     <RangeSlider
                         id="investmentRangeFilter"
-                        min="0"
-                        max="10000"
+                        min="{historyModel>/minAmount}"
+                        max="{historyModel>/maxAmount}"
                         step="100"
                         value="{historyModel>/filters/investmentRange}"
                         width="100%"
                         showAdvancedTooltip="true"
                         enableTickmarks="true"
-                        change=".onFilterChange"/>
-                        
-                    <Label text="Rango de Rentabilidad (%)"/>
+                        liveChange=".onFilterChange"
+                        class="sapUiMediumMarginBottom"
+                    />
+
+                    <Label text="Rango de Rentabilidad (%)" />
                     <RangeSlider
                         id="profitRangeFilter"
                         min="-100"
@@ -62,31 +73,39 @@
                         width="100%"
                         showAdvancedTooltip="true"
                         enableTickmarks="true"
-                        change=".onFilterChange"/>
+                        change=".onFilterChange"
+                    />
                 </f:SimpleForm>
             </VBox>
 
-
             <OverflowToolbar>
-            <Title text="Estrategias Encontradas: {historyModel>/filteredCount}"/>
-            <ToolbarSpacer/>
-            <ToggleButton
-                icon="sap-icon://multi-select"
-                text="Modo Eliminación"
-                pressed="{historyModel>/isDeleteMode}"
-                press=".onToggleDeleteMode"/>
-            <Button
-                icon="sap-icon://delete"
-                text="Eliminar Seleccionados"
-                type="Transparent"
-                visible="{historyModel>/isDeleteMode}"
-                press=".onDeleteSelected"
-                enabled="{= ${historyModel>/selectedCount} > 0 }"/>
-        </OverflowToolbar>
-
+                <Title
+                    text="Estrategias Encontradas: {historyModel>/filteredCount}"
+                />
+                <ToolbarSpacer />
+                <ToggleButton
+                    icon="sap-icon://multi-select"
+                    text="Modo Eliminación"
+                    pressed="{historyModel>/isDeleteMode}"
+                    press=".onToggleDeleteMode"
+                />
+                <Button
+                    icon="sap-icon://delete"
+                    text="Eliminar Seleccionados"
+                    type="Transparent"
+                    visible="{historyModel>/isDeleteMode}"
+                    press=".onDeleteSelected"
+                    enabled="{= ${historyModel>/selectedCount} > 0 }"
+                />
+            </OverflowToolbar>
 
             <!-- Tabla -->
-            <ScrollContainer height="80%" vertical="true" horizontal="false" width="100%">
+            <ScrollContainer
+                height="80%"
+                vertical="true"
+                horizontal="false"
+                width="100%"
+            >
                 <Table
                     id="historyTable"
                     items="{historyModel>/strategies}"
@@ -94,22 +113,43 @@
                     growing="true"
                     growingThreshold="10"
                     sticky="ColumnHeaders"
-                    selectionChange=".onSelectionChange">                    
+                    selectionChange=".onSelectionChange"
+                >
                     <columns>
-                        <Column width="30%" minScreenWidth="Tablet" demandPopin="true">
-                            <Text text="Nombre"/>
+                        <Column
+                            width="30%"
+                            minScreenWidth="Tablet"
+                            demandPopin="true"
+                        >
+                            <Text text="Nombre" />
                         </Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true">
-                            <Text text="Estrategia"/>
+                        <Column
+                            width="20%"
+                            minScreenWidth="Tablet"
+                            demandPopin="true"
+                        >
+                            <Text text="Estrategia" />
                         </Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true">
-                            <Text text="Rango"/>
+                        <Column
+                            width="20%"
+                            minScreenWidth="Tablet"
+                            demandPopin="true"
+                        >
+                            <Text text="Rango" />
                         </Column>
-                        <Column width="10%" minScreenWidth="Tablet" demandPopin="true">
-                            <Text text="Símbolo"/>
+                        <Column
+                            width="10%"
+                            minScreenWidth="Tablet"
+                            demandPopin="true"
+                        >
+                            <Text text="Símbolo" />
                         </Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true">
-                            <Text text="Resultado"/>
+                        <Column
+                            width="20%"
+                            minScreenWidth="Tablet"
+                            demandPopin="true"
+                        >
+                            <Text text="Resultado" />
                         </Column>
                     </columns>
 
@@ -121,25 +161,31 @@
                                     editable="true"
                                     liveChange=".onStrategyNameChange"
                                     submit=".onStrategyNameSubmit"
-                                    tooltip="Click para editar"/>
-                                <Text text="{
+                                    tooltip="Click para editar"
+                                />
+                                <Text
+                                    text="{
                                     path: 'historyModel>details/STRATEGY'
-                                }"/>
-                                <Text text="{
+                                }"
+                                />
+                                <Text
+                                    text="{
                                     parts: [
                                         {path: 'historyModel>details/STARTDATE'},
                                         {path: 'historyModel>details/ENDDATE'}
                                     ],
                                     formatter: '.formatDateRange'
-                                }"/>
-                                <Text text="{historyModel>symbol}"/>
+                                }"
+                                />
+                                <Text text="{historyModel>symbol}" />
                                 <ObjectNumber
                                     number="{
                                         path: 'historyModel>result',
                                         formatter: '.formatCurrency'
                                     }"
                                     unit="USD"
-                                    state="{= ${historyModel>result} > 0 ? 'Success' : 'Error'}"/>
+                                    state="{= ${historyModel>result} > 0 ? 'Success' : 'Error'}"
+                                />
                             </cells>
                         </ColumnListItem>
                     </items>
@@ -148,14 +194,16 @@
         </content>
         <footer>
             <Toolbar>
-                <ToolbarSpacer/>
-                <Button 
-                    text="Cargar" 
+                <ToolbarSpacer />
+                <Button
+                    text="Cargar"
                     type="Emphasized"
-                    press=".onLoadStrategy"/>
-                <Button 
-                    text="Cerrar" 
-                    press=".onCloseHistoryPopover"/>
+                    press=".onLoadStrategy"
+                />
+                <Button
+                    text="Cerrar"
+                    press=".onCloseHistoryPopover"
+                />
             </Toolbar>
         </footer>
     </ResponsivePopover>

@@ -55,6 +55,21 @@ sap.ui.define(
             "historyModel"
           );
 
+
+          this.getView().setModel(new JSONModel({
+            strategies: [],
+            allStrategies: [],
+            filteredCount: 0,
+            selectedCount: 0,
+            minAmount: 0,
+            maxAmount: 10000,
+            filters: {
+              dateRange: null,
+              investmentRange: [0, 10000],
+              profitRange: [-100, 100]
+            }
+          }), "historyModel");
+
           this._loadSimulations();
 
           // 3. Add event delegate for VizFrame configuration after rendering
@@ -70,6 +85,7 @@ sap.ui.define(
 
           // 5. Initialize Strategy Analysis Model
           var oStrategyAnalysisModelData = {
+            balance: 50000,
             balance: 50000,
             stock: 1,
             longSMA: 200,
@@ -108,6 +124,7 @@ sap.ui.define(
           var oStrategyAnalysisModel = new JSONModel(
             oStrategyAnalysisModelData
           );
+
 
           this.getView().setModel(
             oStrategyAnalysisModel,
@@ -1153,7 +1170,7 @@ sap.ui.define(
 
             // Mapea los datos a la estructura que espera la tabla
             const strategies = simulations.map((item) => ({
-              strategyName: item.SIMULATIONNAME || item.strategyName || "", // editable
+              strategyName: item.SIMULATIONNAME || item.strategyName || "",
               details: {
                 STRATEGY: item.STRATEGYID || item.IDSTRATEGY || "",
                 STARTDATE: item.STARTDATE
@@ -1164,6 +1181,7 @@ sap.ui.define(
                   : null,
               },
               symbol: item.SYMBOL || "",
+              amount: item.AMOUNT || 0,
               result:
                 item.SUMMARY?.FINAL_BALANCE ??
                 item.SUMMARY?.FINALBALANCE ??
@@ -1173,20 +1191,27 @@ sap.ui.define(
             }));
 
             // Calcula el total filtrado (puedes agregar lógica de filtros aquí si lo necesitas)
-            const filteredCount = strategies.length;
+            // ...existing code...
+            const amounts = strategies.map(s => s.amount || 0);
+            const minAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
+            const maxAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
 
-            // Crea el modelo con la estructura esperada
+            // Asegúrate que el valor inicial del slider sea el rango completo
             const oData = {
               strategies,
-              filteredCount,
+              allStrategies: strategies.slice(),
+              filteredCount: strategies.length,
               isDeleteMode: false,
               selectedCount: 0,
+              minAmount: minAmount,
+              maxAmount: maxAmount,
               filters: {
                 dateRange: null,
-                investmentRange: [0, 10000],
+                investmentRange: [minAmount, maxAmount],
                 profitRange: [-100, 100],
               },
             };
+            // ...existing code...
 
             const oModel = new sap.ui.model.json.JSONModel(oData);
             this.getView().setModel(oModel, "historyModel");
@@ -1197,7 +1222,7 @@ sap.ui.define(
             }
             this._oHistoryPopover.openBy(oEvent.getSource());
           } catch (err) {
-            sap.m.MessageToast.show("Error al obtener simulaciones");
+            MessageToast.show("Error al obtener simulaciones");
             console.error(err);
           }
         },
@@ -1208,20 +1233,20 @@ sap.ui.define(
             "com.invertions.sapfiorimodinv.view.investments.fragments.InvestmentHistoryPanel";
           const oTable = sap.ui.core.Fragment.byId(FRAGMENT_ID, "historyTable");
           if (!oTable) {
-            sap.m.MessageToast.show("Tabla de historial no encontrada.");
+            MessageToast.show("Tabla de historial no encontrada.");
             return;
           }
 
           const aSelectedItems = oTable.getSelectedItems();
           if (!aSelectedItems || aSelectedItems.length === 0) {
-            sap.m.MessageToast.show("Seleccione una estrategia para cargar.");
+            MessageToast.show("Seleccione una estrategia para cargar.");
             return;
           }
 
           const oSelectedContext =
             aSelectedItems[0].getBindingContext("historyModel");
           if (!oSelectedContext) {
-            sap.m.MessageToast.show(
+            MessageToast.show(
               "No se pudo obtener el contexto del seleccionado."
             );
             return;
@@ -1229,7 +1254,7 @@ sap.ui.define(
 
           const oSelectedStrategy = oSelectedContext.getObject();
           if (!oSelectedStrategy || !oSelectedStrategy._fullRecord) {
-            sap.m.MessageToast.show(
+            MessageToast.show(
               "No se encontró el registro completo de la simulación."
             );
             return;
@@ -1243,7 +1268,7 @@ sap.ui.define(
             this._oHistoryPopover.close();
           }
 
-          sap.m.MessageToast.show("Simulación cargada.");
+          MessageToast.show("Simulación cargada.");
         },
 
         /**
@@ -1271,6 +1296,7 @@ sap.ui.define(
             const res = await fetch(API_INVERSIONES_URL_BASE);
             const data = await res.json();
             const simulations = data.value || [];
+
 
             const historyData = simulations.map((sim) => ({
               date: new Date(sim.START_DATE),
@@ -1319,6 +1345,41 @@ sap.ui.define(
               new JSONModel(historySummary),
               "historySummaryModel"
             );
+            //   status: "Completado",
+            //   amount: sim.AMOUNT || 0,
+            //   _fullRecord: sim
+            // }));
+
+            const amounts = historyData.map(item => item.amount || 0);
+            const minAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
+            const maxAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
+
+            // Actualizar modelo
+            const oModel = this.getView().getModel("historyModel");
+            oModel.setProperty("/strategies", historyData);
+            oModel.setProperty("/allStrategies", historyData);
+            oModel.setProperty("/filteredCount", historyData.length);
+            oModel.setProperty("/minAmount", minAmount);
+            oModel.setProperty("/maxAmount", maxAmount);
+            oModel.setProperty("/filters/investmentRange", [minAmount, maxAmount]);
+
+            this.getView()
+              .getModel("historyModel")
+              .setData({
+                values: historyData,
+                filteredCount: simulations.length,
+                selectedCount: 0,
+                filters: {
+                  dateRange: null,
+                  investmentRange: [0, 10000],
+                  profitRange: [-100, 100],
+                },
+              });
+
+            // Si hay simulaciones, puedes cargar la primera en el gráfico
+            if (simulations.length > 0) {
+              this._loadSimulationData(simulations[0]);
+            }
           } catch (e) {
             console.error("Error cargando simulaciones:", e);
             MessageBox.error("Error al cargar el historial de simulaciones");
@@ -1331,7 +1392,7 @@ sap.ui.define(
         onSymbolChange: async function (oEvent) {
           const sSelectedSymbol = oEvent.getSource().getSelectedKey();
           if (!sSelectedSymbol) {
-            sap.m.MessageToast.show("Por favor, selecciona un símbolo.");
+            MessageToast.show("Por favor, selecciona un símbolo.");
             return;
           }
 
@@ -1433,17 +1494,18 @@ sap.ui.define(
             // Actualiza el dataset del VizFrame
             this._buildDynamicDataset();
 
-            sap.m.MessageToast.show(
+            MessageToast.show(
               `Historial para ${sSelectedSymbol} cargado correctamente.`
             );
           } catch (err) {
             console.error(err);
-            sap.m.MessageToast.show(
+            MessageToast.show(
               "Error al obtener historial para el símbolo seleccionado."
             );
           }
         },
 
+        //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
         /**
          * Carga los datos de una simulación específica en el gráfico
@@ -1476,7 +1538,7 @@ sap.ui.define(
               const result = await response.json();
               simulationData = Array.isArray(result) ? result[0] : result;
             } catch (e) {
-              sap.m.MessageToast.show(
+              MessageToast.show(
                 "Error al cargar la simulación seleccionada"
               );
               console.error(e);
@@ -1551,9 +1613,9 @@ sap.ui.define(
           // Construir el dataset dinámico y actualizar feeds
           this._buildDynamicDataset();
 
-          MessageToast.show(
-            `Datos de simulación cargados para ${simulationData.SIMULATIONNAME}`
-          );
+          // MessageToast.show(
+          //   `Datos de simulación cargados para ${simulationData.SIMULATIONNAME}`
+          // );
         },
 
         _parseDate: function (dateValue) {
@@ -1601,6 +1663,190 @@ sap.ui.define(
           result.text = result.textParts.join(", ") || "N/A";
           return result;
         },
+
+        onDeleteSelected: async function () {
+          const oModel = this.getView().getModel("historyModel");
+          const aSelectedIds = oModel.getProperty("/selectedIds") || [];
+
+          if (aSelectedIds.length === 0) {
+            MessageToast.show("Selecciona al menos una simulación para eliminar.");
+            return;
+          }
+
+          // Confirmación
+          MessageBox.confirm(
+            `¿Seguro que deseas eliminar ${aSelectedIds.length} simulación(es)?`,
+            {
+              onClose: async (sAction) => {
+                if (sAction === MessageBox.Action.OK) {
+                  try {
+                    const response = await fetch("http://localhost:3333/api/security/inversions/deleteSimulations", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ simulationIds: aSelectedIds }),
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                      MessageToast.show("Simulaciones eliminadas correctamente.");
+                      // Recarga el historial
+                      this.onHistoryPress();
+                    } else {
+                      MessageBox.error("No se pudieron eliminar las simulaciones.");
+                    }
+                  } catch (e) {
+                    MessageBox.error("Error al eliminar simulaciones.");
+                    console.error(e);
+                  }
+                }
+              },
+            }
+          );
+        },
+
+        onSelectionChange: function (oEvent) {
+          const oTable = oEvent.getSource();
+          const aSelectedItems = oTable.getSelectedItems();
+          const oModel = this.getView().getModel("historyModel");
+
+          // Obtén los SIMULATIONID de los seleccionados
+          const aSelectedIds = aSelectedItems
+            .map(item => item.getBindingContext("historyModel").getObject()._fullRecord?.SIMULATIONID)
+            .filter(Boolean);
+
+          oModel.setProperty("/selectedIds", aSelectedIds);
+          oModel.setProperty("/selectedCount", aSelectedIds.length);
+
+          // Mostrar en consola los IDs seleccionados
+          console.log("Simulaciones seleccionadas:", aSelectedIds);
+        },
+
+        /*
+          HISTORIAL DE ESTRATEGIAS SIMULADAS
+        */
+
+        //Función para la barra de busqueda del historial de estrategias simuladas
+        onSearch: function (oEvent) {
+          const sQuery = oEvent.getParameter("query") ?? oEvent.getParameter("newValue") ?? "";
+          const oModel = this.getView().getModel("historyModel");
+          const aAllStrategies = oModel.getProperty("/allStrategies") || oModel.getProperty("/strategies") || [];
+
+          if (!sQuery) {
+            oModel.setProperty("/filteredCount", aAllStrategies.length);
+            oModel.setProperty("/strategies", aAllStrategies);
+            return;
+          }
+
+          const sLowerQuery = sQuery.toLowerCase();
+
+          const aFiltered = aAllStrategies.filter(item => {
+            const name = (item.strategyName || "").toLowerCase();
+            const symbol = (item.symbol || "").toLowerCase();
+            return name.includes(sLowerQuery) || symbol.includes(sLowerQuery);
+          });
+
+          oModel.setProperty("/filteredCount", aFiltered.length);
+          oModel.setProperty("/strategies", aFiltered);
+        },
+
+
+        // Filtro para el rango de fechas del historial de estrategias simuladas
+        onFilterChange: function (oEvent) {
+          const oModel = this.getView().getModel("historyModel");
+          const aAllStrategies = oModel.getProperty("/allStrategies") || [];
+
+          // 1. Calcular los rangos reales basados en los datos
+          const amounts = aAllStrategies.map(item => item.amount || 0);
+          const minPossibleAmount = amounts.length > 0 ? Math.min(...amounts) : 0;
+          const maxPossibleAmount = amounts.length > 0 ? Math.max(...amounts) : 10000;
+
+          // 2. Obtener el rango actual del slider DESDE EL EVENTO si existe
+          let aInvestmentRange;
+          if (
+            oEvent &&
+            oEvent.getSource &&
+            oEvent.getSource().getId &&
+            oEvent.getSource().getId().includes("investmentRangeFilter")
+          ) {
+            // El valor correcto viene en "range" para RangeSlider
+            aInvestmentRange = oEvent.getParameter("range");
+            if (!Array.isArray(aInvestmentRange)) {
+              aInvestmentRange = [minPossibleAmount, maxPossibleAmount];
+            }
+          } else {
+            aInvestmentRange =
+              oModel.getProperty("/filters/investmentRange") ||
+              [minPossibleAmount, maxPossibleAmount];
+          }
+
+          // 3. Asegurar que el rango no exceda los límites posibles
+          aInvestmentRange = [
+            Math.max(minPossibleAmount, aInvestmentRange[0]),
+            Math.min(maxPossibleAmount, aInvestmentRange[1])
+          ];
+
+          // 4. Asegurar que haya un rango mínimo razonable (1000 unidades de diferencia)
+          const MIN_RANGE = 1000;
+          if (aInvestmentRange[1] - aInvestmentRange[0] < MIN_RANGE) {
+            // Ajustar el rango mínimo manteniendo el máximo si es posible
+            if (aInvestmentRange[1] - MIN_RANGE >= minPossibleAmount) {
+              aInvestmentRange[0] = aInvestmentRange[1] - MIN_RANGE;
+            }
+            // Ajustar el rango máximo manteniendo el mínimo si es posible
+            else if (aInvestmentRange[0] + MIN_RANGE <= maxPossibleAmount) {
+              aInvestmentRange[1] = aInvestmentRange[0] + MIN_RANGE;
+            }
+            // Si no es posible mantener el rango mínimo, usar los límites totales
+            else {
+              aInvestmentRange = [minPossibleAmount, maxPossibleAmount];
+            }
+          }
+
+          // 5. Actualizar el modelo con los nuevos valores
+          oModel.setProperty("/minAmount", minPossibleAmount);
+          oModel.setProperty("/maxAmount", maxPossibleAmount);
+          oModel.setProperty("/filters/investmentRange", aInvestmentRange);
+
+          // 6. Filtrar los datos
+          const oDateRange = sap.ui.getCore().byId("dateRangeFilter");
+          const oDateValue = oDateRange?.getDateValue();
+          const oSecondDateValue = oDateRange?.getSecondDateValue();
+
+          const aFiltered = aAllStrategies.filter(item => {
+            const start = item.details?.STARTDATE;
+            const end = item.details?.ENDDATE;
+            const amount = item.amount || 0;
+
+            // Filtro de fechas
+            let dateOk = true;
+            if (oDateValue && oSecondDateValue) {
+              dateOk = start instanceof Date && end instanceof Date &&
+                end >= oDateValue && start <= oSecondDateValue;
+            }
+
+            // Filtro de monto
+            const amountOk = amount >= aInvestmentRange[0] && amount <= aInvestmentRange[1];
+
+            return dateOk && amountOk;
+          });
+
+          // 7. Actualizar la vista
+          oModel.setProperty("/filteredCount", aFiltered.length);
+          oModel.setProperty("/strategies", aFiltered);
+
+          // console.log("Rango actualizado:", {
+          //   minPossible: minPossibleAmount,
+          //   maxPossible: maxPossibleAmount,
+          //   currentRange: aInvestmentRange,
+          //   filteredCount: aFiltered.length
+          // });
+        },
+        
+        onCloseHistoryPopover: function () {
+          if (this._oHistoryPopover && this._oHistoryPopover.isOpen()) {
+            this._oHistoryPopover.close();
+          }
+        },
+
       }
     );
   }
