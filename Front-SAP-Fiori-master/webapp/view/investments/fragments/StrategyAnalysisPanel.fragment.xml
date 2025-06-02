@@ -264,6 +264,61 @@
                             visible="{= ${strategyAnalysisModel>/strategyKey} === 'IronCondor' }"
                         />
 
+                         <VBox width="48%">
+                            <Label
+                                text="{i18n>shortEMAPeriodLabelText}"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                            <Input
+                                id="shortEMAInputMomentum"
+                                value="{strategyAnalysisModel>/shortEMA}"
+                                type="Number"
+                                placeholder="Ej: 21"
+                                width="100%"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                        </VBox>
+                        <VBox width="48%">
+                            <Label
+                                text="{i18n>longEMAPeriodLabelText}"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                            <Input
+                                id="longEMAInputMomentum"
+                                value="{strategyAnalysisModel>/longEMA}"
+                                type="Number"
+                                placeholder="Ej: 50"
+                                width="100%"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                        </VBox>
+                        <VBox width="100%">
+                            <Label
+                                text="{i18n>rsiPeriodMomentumLabelText}"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                            <StepInput
+                                value="{strategyAnalysisModel>/rsiMomentum}"
+                                min="1"
+                                step="1"
+                                width="100%"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                        </VBox>
+                        <VBox width="100%">
+                            <Label
+                                text="{i18n>adxPeriodMomentumLabelText}"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                            <StepInput
+                                value="{strategyAnalysisModel>/adxMomentum}"
+                                min="1"
+                                step="1"
+                                width="100%"
+                                visible="{= ${strategyAnalysisModel>/strategyKey} === 'Momentum' }"
+                            />
+                        </VBox>
+                        
                         <Button
                             id="runAnalysisButtonInFragment"
                             text="{i18n>runAnalysisButtonText}"

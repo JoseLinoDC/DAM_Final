@@ -11,7 +11,7 @@ async function SimulateMomentum(req) {
   const idStrategy = (symbol, usuario) => {
     const date = new Date();
     const timestamp = date.toISOString().slice(0, 10);
-    const user = usuario[0];
+    const user = (usuario || "").toString()[0] || "U";
     return `${symbol}-${timestamp}-${user}-${numR}`;
   };
   //Datos Estaticos para la respuesta
@@ -24,8 +24,9 @@ async function SimulateMomentum(req) {
   if (!SYMBOL) missingParams.push("SYMBOL");
   if (!STARTDATE) missingParams.push("STARTDATE");
   if (!ENDDATE) missingParams.push("ENDDATE");
-  if (AMOUNT === undefined || !AMOUNT) missingParams.push("AMOUNT");
+  if (AMOUNT === undefined || AMOUNT <= 0) missingParams.push("AMOUNT");
   if (!USERID) missingParams.push("USERID");
+  if (!Array.isArray(SPECS) || SPECS.length === 0) missingParams.push("SPECS");
   if (missingParams.length > 0) {
     return {
       message: `FALTAN PARÁMETROS REQUERIDOS: ${missingParams.join(", ")}.`,
@@ -33,10 +34,23 @@ async function SimulateMomentum(req) {
   }
   // ||||||| <---Usos de la API
   const APIURL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
-  const response = await axios.get(APIURL);
-  const data = response.data["Time Series (Daily)"]; // objeto por fechas
+  // const response = await axios.get(APIURL);
+  // const data = response.data["Time Series (Daily)"]; // objeto por fechas
+  // VAlidar que la api retorne datos
+  let response;
+  try {
+    response = await axios.get(APIURL);
+  } catch (error) {
+    return { status: 500, message: "Error al obtener datos del mercado: " + error.message };
+  }
+
+  const data = response.data["Time Series (Daily)"];
+  if (!data) {
+    return { status: 500, message: "Datos no disponibles para el símbolo solicitado." };
+  }
+
   const parsedData = Object.entries(data).map(([date, values]) => ({
-    DATE: new Date(date).toISOString().slice(0, 10),
+    DATE: date,
     OPEN: parseFloat(values["1. open"]),
     HIGH: parseFloat(values["2. high"]),
     LOW: parseFloat(values["3. low"]),
@@ -491,7 +505,9 @@ async function SimulateMomentum(req) {
   return {
     simulacion,
   };
-}
+} //SImulacion Momentum
+
+
 
 /// ---------RESTO DE ESTRATEGIAS ------
 

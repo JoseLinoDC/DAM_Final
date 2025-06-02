@@ -78,12 +78,29 @@ sap.ui.define(
             startDate: null,
             endDate: null,
             controlsVisible: false,
+            // Campos específicos para la estrategia Momentum
+            shortEMA: 21, // Default EMA corta
+            longEMA: 50, // Default EMA larga
+            rsiMomentum: 14, // Default RSI periodo para Momentum
+            adxMomentum: 14, // Default ADX periodo para Momentum
+            // Para IronCondor
+            width: 5,
+            premium: 2,
+            rsiPeriod: 14,
+            rsiMin: 40,
+            rsiMax: 60,
+            volThreshold: 1000000,
+            expiryDays: 5,
+
             strategies: [
-              { key: "", text: "Cargando textos..." }, // Placeholder for i18n
-              { key: "MACrossover", text: "Cargando textos..." },
-              { key: "Reversión Simple", text: "Cargando textos..." },
-              { key: "Supertrend", text: "Cargando textos..." },
+              { key: "", text: "Seleccione una estrategia" },
+              { key: "MACrossover", text: "MA Crossover" },
+              { key: "Reversión Simple", text: "Reversión Simple" },
+              { key: "Supertrend", text: "Supertrend" },
+              { key: "Momentum", text: "Momentum" },
+              { key: "IronCondor", text: "Iron Condor" },
             ],
+
             // IMPORTANT: Initialize as an ARRAY of strings for VizFrame FeedItem
             chartMeasuresFeed: ["PrecioCierre", "Señal BUY", "Señal SELL"],
           };
@@ -135,8 +152,8 @@ sap.ui.define(
           // 7. Initialize Strategy Result Model
           var oStrategyResultModel = new JSONModel({
             hasResults: false,
-            idSimulation: null,
-            signal: null,
+            chart_data: [],
+            signals: [],
             date_from: null,
             date_to: null,
             moving_averages: { short: null, long: null },
@@ -156,6 +173,7 @@ sap.ui.define(
             FINAL_BALANCE: 0,
             REAL_PROFIT: 0,
             PERCENTAGE_RETURN: 0, // Nueva propiedad
+            chartMeasuresFeed: ["PrecioCierre", "Señal BUY", "Señal SELL"],
           });
           this.getView().setModel(oStrategyResultModel, "strategyResultModel");
 
@@ -293,6 +311,12 @@ sap.ui.define(
                     ),
                   },
                   {
+                    key: "Momentum",
+                    text: this._oResourceBundle.getText(
+                      "movingAverageMomentumStrategy"
+                    ),
+                  },
+                  {
                     key: "IronCondor",
                     text: this._oResourceBundle.getText("ironCondorStrategy"),
                   },
@@ -311,6 +335,7 @@ sap.ui.define(
                   text: "Error i18n: Reversion Simple...",
                 },
                 { key: "Supertrend", text: "Error i18n: Supertrend" },
+                { key: "Momentum", text: "Error i18n: Momentum" }, // Añadido
                 { key: "IronCondor", text: "Error i18n: Iron Condor" },
               ]);
             }
@@ -323,6 +348,7 @@ sap.ui.define(
               { key: "MACrossover", text: "No i18n: Cruce Medias..." },
               { key: "Reversión Simple", text: "No i18n: Reversion Simple..." },
               { key: "Supertrend", text: "No i18n: Supertrend" },
+              { key: "Momentum", text: "No i18n: Momentum" }, // Añadido
               { key: "IronCondor", text: "No i18n: Iron Condor" },
             ]);
           }
@@ -482,18 +508,9 @@ sap.ui.define(
           var oView = this.getView();
           var oStrategyModel = oView.getModel("strategyAnalysisModel");
           var oResultModel = oView.getModel("strategyResultModel");
-          var oAnalysisPanel =
-            this.byId("strategyAnalysisPanelTable")?.byId(
-              "strategyAnalysisPanel"
-            ) ||
-            this.byId("strategyAnalysisPanelChart")?.byId(
-              "strategyAnalysisPanel"
-            );
-          var oResultPanel = this.byId("strategyResultPanel"); // Ensure this ID is correct
+          var oVizFrame = this.byId("idVizFrame");
 
           var sSymbol = oView.byId("symbolSelector").getSelectedKey();
-
-          // Basic validations
           if (!oStrategyModel.getProperty("/strategyKey")) {
             MessageBox.warning("Seleccione una estrategia");
             return;
@@ -503,58 +520,101 @@ sap.ui.define(
             return;
           }
 
-          if (oAnalysisPanel) {
-            oAnalysisPanel.setExpanded(false);
-          }
-
-          var strategy = oStrategyModel.getProperty("/strategyKey");
-          // Expand results panel
-          if (oResultPanel) {
-            oResultPanel.setExpanded(true);
-          }
-
-          // Adjust strategy name for API call if necessary
-          let apiStrategyName = strategy; // Usamos una variable para el nombre de la API
-          if (strategy === "Reversión Simple") {
+          let apiStrategyName = oStrategyModel.getProperty("/strategyKey");
+          if (apiStrategyName === "Reversión Simple")
             apiStrategyName = "reversionsimple";
-          } else if (strategy === "Supertrend") {
+          else if (apiStrategyName === "Supertrend")
             apiStrategyName = "supertrend";
-          }
+          else if (apiStrategyName === "Momentum") apiStrategyName = "momentum";
+          else if (apiStrategyName === "IronCondor")
+            apiStrategyName = "ironcondor";
 
-          var SPECS = []; // Initialize as array
-
-          if (apiStrategyName === "reversionsimple") {
-            const rsi = oStrategyModel.getProperty("/rsi");
-            const sma = oStrategyModel.getProperty("/shortSMA");
-            SPECS = [
-              { INDICATOR: "rsi", VALUE: rsi },
-              { INDICATOR: "sma", VALUE: sma },
-            ];
-          } else if (apiStrategyName === "supertrend") {
+          var SPECS = [];
+          if (apiStrategyName === "supertrend") {
             SPECS = [
               {
                 INDICATOR: "ma_length",
-                VALUE: oStrategyModel.getProperty("/ma_length"),
+                VALUE: oStrategyModel.getProperty("/longSMA") || 20,
               },
-              { INDICATOR: "atr", VALUE: oStrategyModel.getProperty("/atr") },
-              { INDICATOR: "mult", VALUE: oStrategyModel.getProperty("/mult") },
-              { INDICATOR: "rr", VALUE: oStrategyModel.getProperty("/rr") },
+              {
+                INDICATOR: "atr",
+                VALUE: oStrategyModel.getProperty("/atr") || 10,
+              },
+              {
+                INDICATOR: "mult",
+                VALUE: oStrategyModel.getProperty("/mult") || 2.0,
+              },
+              {
+                INDICATOR: "rr",
+                VALUE: oStrategyModel.getProperty("/rr") || 1.5,
+              },
             ];
-          } else {
-            // Default for MACrossover or any other strategy
+          } else if (apiStrategyName === "momentum") {
+            SPECS = [
+              {
+                INDICATOR: "shortEMA",
+                VALUE: oStrategyModel.getProperty("/shortEMA") || 21,
+              },
+              {
+                INDICATOR: "longEMA",
+                VALUE: oStrategyModel.getProperty("/longEMA") || 50,
+              },
+              {
+                INDICATOR: "rsiMomentum",
+                VALUE: oStrategyModel.getProperty("/rsiMomentum") || 14,
+              },
+              {
+                INDICATOR: "adxMomentum",
+                VALUE: oStrategyModel.getProperty("/adxMomentum") || 14,
+              },
+            ];
+          } else if (apiStrategyName === "ironcondor") {
+            SPECS = [
+              {
+                INDICATOR: "WIDTH",
+                VALUE: oStrategyModel.getProperty("/width") || 5,
+              },
+              {
+                INDICATOR: "PREMIUM",
+                VALUE: oStrategyModel.getProperty("/premium") || 2,
+              },
+              {
+                INDICATOR: "RSI_PERIOD",
+                VALUE: oStrategyModel.getProperty("/rsiPeriod") || 14,
+              },
+              {
+                INDICATOR: "RSI_MIN",
+                VALUE: oStrategyModel.getProperty("/rsiMin") || 40,
+              },
+              {
+                INDICATOR: "RSI_MAX",
+                VALUE: oStrategyModel.getProperty("/rsiMax") || 60,
+              },
+              {
+                INDICATOR: "VOL_THRESHOLD",
+                VALUE: oStrategyModel.getProperty("/volThreshold") || 1000000,
+              },
+              {
+                INDICATOR: "EXPIRY_DAYS",
+                VALUE: oStrategyModel.getProperty("/expiryDays") || 5,
+              },
+            ];
+          } else if (
+            apiStrategyName === "reversionsimple" ||
+            apiStrategyName === "macrossover"
+          ) {
             SPECS = [
               {
                 INDICATOR: "SHORT_MA",
-                VALUE: oStrategyModel.getProperty("/shortSMA"),
+                VALUE: oStrategyModel.getProperty("/shortSMA") || 50,
               },
               {
                 INDICATOR: "LONG_MA",
-                VALUE: oStrategyModel.getProperty("/longSMA"),
+                VALUE: oStrategyModel.getProperty("/longSMA") || 200,
               },
             ];
           }
 
-          // Configure request body
           var oRequestBody = {
             SIMULATION: {
               SYMBOL: sSymbol,
@@ -562,17 +622,16 @@ sap.ui.define(
                 oStrategyModel.getProperty("/startDate")
               ),
               ENDDATE: this.formatDate(oStrategyModel.getProperty("/endDate")),
-              AMOUNT: oStrategyModel.getProperty("/stock"),
-              USERID: "ARAMIS", // O el usuario real si lo tienes
+              AMOUNT: oStrategyModel.getProperty("/stock") || 1,
+              USERID: "usuarioPrueba",
               SPECS: SPECS,
             },
           };
 
-          // API call
-          // const PORT = 3333; // Ensure this matches your backend port
+          console.log("Enviando solicitud con:", oRequestBody);
 
           fetch(
-            `http://localhost:3333/api/security/inversions/simulation?strategy=${apiStrategyName}`, // Usar apiStrategyName
+            `http://localhost:3333/api/security/inversions/simulation?strategy=${apiStrategyName}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -583,26 +642,22 @@ sap.ui.define(
               response.ok ? response.json() : Promise.reject(response)
             )
             .then((data) => {
-              console.log("Datos recibidos:", data);
-
+              const simulation = data.value?.[0];
+              if (!simulation) {
+                MessageBox.warning("No se recibieron datos de la simulación.");
+                return;
+              }
               const aChartData = this._prepareTableData(
-                data.value?.[0]?.CHART_DATA || [],
-                data.value?.[0]?.SIGNALS || []
+                simulation.CHART_DATA || [],
+                simulation.SIGNALS || []
               );
-              const aSignals = data.value?.[0]?.SIGNALS || [];
-              const oSummary = data.value?.[0]?.SUMMARY || {}; // Obtener el objeto SUMMARY
-
-              // Update result model with transformed data for chart and table
+              const oSummary = simulation.SUMMARY || {};
               oResultModel.setData({
                 hasResults: true,
                 chart_data: aChartData,
-                signals: aSignals,
-                result: oSummary.REAL_PROFIT || 0, // Usar REAL_PROFIT del SUMMARY
-                // Datos para el resumen de simulación (directamente del SUMMARY de la API)
-                simulationName:
-                  oStrategyModel
-                    .getProperty("/strategies")
-                    .find((s) => s.key === strategy)?.text || strategy,
+                signals: simulation.SIGNALS || [],
+                result: oSummary.REAL_PROFIT || 0,
+                simulationName: simulation.SIMULATIONNAME || apiStrategyName,
                 symbol: sSymbol,
                 startDate: oStrategyModel.getProperty("/startDate"),
                 endDate: oStrategyModel.getProperty("/endDate"),
@@ -615,26 +670,16 @@ sap.ui.define(
                 REAL_PROFIT: oSummary.REAL_PROFIT || 0,
                 PERCENTAGE_RETURN: oSummary.PERCENTAGE_RETURN || 0,
               });
-
-              // After new data is loaded, ensure chart feeds are updated based on current strategy
-              // Esto es crucial para que el gráfico se actualice correctamente con las medidas de la nueva estrategia
-
-              // Invalidate the VizFrame to force a re-render
-              const oVizFrame = this.byId("idVizFrame");
+              oResultModel.refresh(true);
+              this._buildDynamicDataset();
               if (oVizFrame) {
-                oVizFrame.invalidate(); // Invalidate the control to force re-rendering
-                // oVizFrame.rerender(); // Explicitly rerender (though invalidate often triggers this) - NO ES NECESARIO
+                oVizFrame.setModel(oResultModel, "strategyResultModel");
+                oVizFrame.invalidate();
               }
-
-              // Update balance
-              var currentBalance = oStrategyModel.getProperty("/balance") || 0;
-              var totalGain = oSummary.REAL_PROFIT || 0; // Usar la ganancia real del SUMMARY
-              oStrategyModel.setProperty(
-                "/balance",
-                currentBalance + totalGain
-              );
               MessageToast.show(
-                "Se añadieron $" + totalGain.toFixed(2) + " a tu balance."
+                `Se añadieron $${(oSummary.REAL_PROFIT || 0).toFixed(
+                  2
+                )} a tu balance.`
               );
             })
             .catch((error) => {
@@ -768,70 +813,109 @@ sap.ui.define(
          * This function is called onInit and when the strategy changes.
          * @private
          */
+
+        //Modifica el feed de medidas del gráfico según la estrategia seleccionada
+        //para evitar estar cambiando el dataset y feeds cada vez que se cambia la estrategia
         _updateChartMeasuresFeed: function () {
+          // 🔥 Reconstruir el Dataset y los Feeds dinámicamente
+          this._buildDynamicDataset();
+
+          // 🔥 Actualizar también el modelo "strategyAnalysisModel" con las nuevas medidas disponibles
+          const oStrategyResultModel = this.getView().getModel(
+            "strategyResultModel"
+          );
           const oStrategyAnalysisModel = this.getView().getModel(
             "strategyAnalysisModel"
           );
-          const sStrategyKey =
-            oStrategyAnalysisModel.getProperty("/strategyKey");
 
-          // Define las medidas base que siempre deben estar presentes
-          // ¡IMPORTANTE! Usar los NOMBRES de las MeasureDefinition del XML, no los nombres de las propiedades de los datos.
-          let aMeasures = ["PrecioCierre", "Señal BUY", "Señal SELL"];
-
-          // Añade medidas adicionales según la estrategia seleccionada
-          if (sStrategyKey === "MACrossover") {
-            aMeasures.push("SHORT_MA", "LONG_MA"); // Estos nombres coinciden en tu XML
-          } else if (sStrategyKey === "Reversión Simple") {
-            aMeasures.push("RSI", "SMA"); // Estos nombres coinciden en tu XML
-          } else if (sStrategyKey === "Supertrend") {
-            aMeasures.push("MA", "ATR");
-          }
-
-          // Actualiza la propiedad del modelo con las medidas actuales
-          oStrategyAnalysisModel.setProperty("/chartMeasuresFeed", aMeasures);
-          console.log("Medidas actualizadas en el modelo:", aMeasures);
-
-          const oVizFrame = this.byId("idVizFrame");
-          if (oVizFrame) {
-            // Obtener el dataset actual
-            const oDataset = oVizFrame.getDataset();
-            if (oDataset) {
-              // Eliminar feeds existentes para valueAxis
-              const aCurrentFeeds = oVizFrame.getFeeds();
-              for (let i = aCurrentFeeds.length - 1; i >= 0; i--) {
-                const oFeed = aCurrentFeeds[i];
-                if (oFeed.getUid() === "valueAxis") {
-                  oVizFrame.removeFeed(oFeed);
-                }
-              }
-
-              // Crear y añadir un nuevo FeedItem para valueAxis con las medidas actualizadas
-              const oNewValueAxisFeed = new FeedItem({
-                uid: "valueAxis",
-                type: "Measure",
-                values: aMeasures,
-              });
-              oVizFrame.addFeed(oNewValueAxisFeed);
-              console.log(
-                "Nuevo Feed 'valueAxis' añadido con:",
-                oNewValueAxisFeed.getValues()
-              );
-
-              // Forzar la actualización del dataset si es necesario (a veces ayuda)
-              // oDataset.setModel(oVizFrame.getModel("strategyResultModel")); // Esto puede ser redundante si el binding ya está bien
-
-              // Invalida el VizFrame para forzar un re-renderizado
-              oVizFrame.invalidate();
-              console.log(
-                "VizFrame invalidado y feeds re-establecidos para redibujar con nuevas medidas."
-              );
-            } else {
-              console.warn("Dataset no encontrado en el VizFrame.");
-            }
+          const aChartData =
+            oStrategyResultModel.getProperty("/chart_data") || [];
+          if (aChartData.length > 0) {
+            const aAvailableFields = Object.keys(aChartData[0]).filter(
+              (f) => f !== "DATE_GRAPH" && f !== "DATE"
+            );
+            oStrategyAnalysisModel.setProperty(
+              "/chartMeasuresFeed",
+              aAvailableFields
+            );
           } else {
-            console.warn("VizFrame con ID 'idVizFrame' no encontrado.");
+            oStrategyAnalysisModel.setProperty("/chartMeasuresFeed", []);
           }
+
+          console.log(
+            "📊 Dataset y chartMeasuresFeed actualizados dinámicamente."
+          );
+        },
+
+        _buildDynamicDataset: function () {
+          const oVizFrame = this.byId("idVizFrame");
+          const oStrategyResultModel = this.getView().getModel(
+            "strategyResultModel"
+          );
+          const aChartData =
+            oStrategyResultModel.getProperty("/chart_data") || [];
+
+          if (!oVizFrame) {
+            console.warn("VizFrame no encontrado");
+            return;
+          }
+
+          // Quita el dataset y feeds anteriores
+          oVizFrame.removeAllFeeds();
+          oVizFrame.destroyDataset();
+
+          if (aChartData.length === 0) {
+            console.warn("No hay datos de chart_data para crear el dataset");
+            return;
+          }
+
+          // Extraer todas las claves (columnas) excepto la dimensión
+          const aKeys = Object.keys(aChartData[0]).filter(
+            (key) => key !== "DATE_GRAPH" && key !== "DATE"
+          );
+
+          // Crear medidas dinámicas
+          const aMeasureDefs = aKeys.map((key) => {
+            return new sap.viz.ui5.data.MeasureDefinition({
+              name: key,
+              value: `{${key}}`,
+            });
+          });
+
+          // Construir el nuevo dataset dinámico
+          const oDataset = new sap.viz.ui5.data.FlattenedDataset({
+            data: { path: "strategyResultModel>/chart_data" },
+            dimensions: [
+              new sap.viz.ui5.data.DimensionDefinition({
+                name: "Fecha",
+                value: "{DATE_GRAPH}",
+                dataType: "date",
+              }),
+            ],
+            measures: aMeasureDefs,
+          });
+
+          oVizFrame.setDataset(oDataset);
+
+          // Configurar feeds dinámicamente con un límite (ejemplo: 4 medidas)
+          const maxMeasures = 4;
+          oVizFrame.addFeed(
+            new sap.viz.ui5.controls.common.feeds.FeedItem({
+              uid: "timeAxis",
+              type: "Dimension",
+              values: ["Fecha"],
+            })
+          );
+          oVizFrame.addFeed(
+            new sap.viz.ui5.controls.common.feeds.FeedItem({
+              uid: "valueAxis",
+              type: "Measure",
+              values: aKeys.slice(0, maxMeasures),
+            })
+          );
+
+          oVizFrame.invalidate(); // Forzar redibujado
+          console.log("Dataset y feeds dinámicos actualizados:", aKeys);
         },
 
         /**
@@ -839,20 +923,24 @@ sap.ui.define(
          * Triggers a new analysis run with the current symbol.
          */
         onRefreshChart: function () {
-          const oSymbolModel = this.getView().getModel("symbolModel");
-          const sCurrentSymbol = this.byId("symbolSelector").getSelectedKey(); // Get selected symbol
+          const oVizFrame = this.byId("idVizFrame");
+          const oStrategyResultModel = this.getView().getModel(
+            "strategyResultModel"
+          );
 
-          if (sCurrentSymbol) {
-            this.onRunAnalysisPress(); // Recalculate and update chart data
+          if (!oStrategyResultModel.getProperty("/hasResults")) {
+            MessageToast.show("No hay resultados para actualizar el gráfico.");
+            return;
+          }
+
+          // Refresca solo el VizFrame con los datos actuales
+          this._updateChartMeasuresFeed();
+
+          if (oVizFrame) {
+            oVizFrame.invalidate(); // Esto fuerza el re-renderizado del gráfico
+            MessageToast.show("Gráfico actualizado con los datos actuales.");
           } else {
-            const aSymbols = oSymbolModel.getProperty("/symbols");
-            if (aSymbols && aSymbols.length > 0) {
-              const sDefaultSymbol = aSymbols[0].symbol;
-              this.byId("symbolSelector").setSelectedKey(sDefaultSymbol); // Set default if none selected
-              this.onRunAnalysisPress();
-            } else {
-              MessageToast.show("Por favor, seleccione un símbolo.");
-            }
+            MessageToast.show("No se pudo encontrar el gráfico.");
           }
         },
 
@@ -901,19 +989,15 @@ sap.ui.define(
             );
             this.getView().addDependent(this._oHistoryPopover);
 
-            const oTable = this.byId("historyTable");
+            const oTable = this.byId("strategyTable");
             if (oTable) {
-              oTable.attachSelectionChange(
-                function (oEvent) {
-                  const oSelectedItem = oEvent
-                    .getParameter("listItem")
-                    .getBindingContext("historyModel")
-                    .getObject();
-                  if (oSelectedItem._fullRecord) {
-                    this._loadSimulationData(oSelectedItem._fullRecord);
-                  }
-                }.bind(this)
-              );
+              const oBinding = oTable.getBinding("items");
+              if (oBinding) {
+                oBinding.refresh(true); // Esto forzará el refresco de los items
+                console.log("✅ Tabla actualizada con la nueva simulación.");
+              } else {
+                console.warn("⚠️ No se encontró binding en la tabla.");
+              }
             }
           }
 
@@ -1055,10 +1139,10 @@ sap.ui.define(
 
             // Transforma los datos para el modelo de historial
             const historyData = simulations.map((sim) => ({
-              date: new Date(sim.STARTDATE),
+              date: new Date(sim.START_DATE),
               strategyName: sim.IDSTRATEGY,
               symbol: sim.SYMBOL,
-              result: sim.SUMMARY?.REALPROFIT ?? 0,
+              result: sim.SUMMARY?.REAL_PROFIT ?? 0,
               status: "Completado",
               _fullRecord: sim, // Guarda el registro completo por si lo necesitas
             }));
@@ -1086,6 +1170,127 @@ sap.ui.define(
           }
         },
 
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        //Muestra el historial de datos de simulación una empresa específica
+        onSymbolChange: async function (oEvent) {
+          const sSelectedSymbol = oEvent.getSource().getSelectedKey();
+          if (!sSelectedSymbol) {
+            sap.m.MessageToast.show("Por favor, selecciona un símbolo.");
+            return;
+          }
+
+          // Puedes hacer fetch aquí si quieres obtener datos actualizados:
+          try {
+            const response = await fetch(
+              "http://localhost:3333/api/security/inversions/getAllSimulations"
+            );
+            if (!response.ok) throw new Error("Error en la solicitud");
+            const result = await response.json();
+            const simulations = result.value || [];
+
+            // Filtrar por símbolo seleccionado
+            const simulationsForSymbol = simulations.filter(
+              (sim) => sim.SYMBOL === sSelectedSymbol
+            );
+
+            if (simulationsForSymbol.length === 0) {
+              sap.m.MessageToast.show(
+                `No se encontraron simulaciones para ${sSelectedSymbol}`
+              );
+              return;
+            }
+
+            // Opcional: puedes tomar la simulación más reciente
+            const latestSim = simulationsForSymbol.reduce((prev, current) => {
+              const prevDate = new Date(prev.ENDDATE || prev.END_DATE);
+              const currentDate = new Date(current.ENDDATE || current.END_DATE);
+              return currentDate > prevDate ? current : prev;
+            });
+
+            // Preparar datos para la tabla y gráfico
+            const aChartData = this._prepareTableData(
+              latestSim.CHART_DATA || [],
+              latestSim.SIGNALS || []
+            );
+            const oStrategyResultModel = this.getView().getModel(
+              "strategyResultModel"
+            );
+            const summary = latestSim.SUMMARY || {};
+
+            oStrategyResultModel.setProperty("/hasResults", true);
+            oStrategyResultModel.setProperty("/chart_data", aChartData);
+            oStrategyResultModel.setProperty(
+              "/signals",
+              latestSim.SIGNALS || []
+            );
+            oStrategyResultModel.setProperty(
+              "/result",
+              summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/simulationName",
+              latestSim.SIMULATIONNAME
+            );
+            oStrategyResultModel.setProperty("/symbol", latestSim.SYMBOL);
+            oStrategyResultModel.setProperty(
+              "/startDate",
+              new Date(latestSim.STARTDATE)
+            );
+            oStrategyResultModel.setProperty(
+              "/endDate",
+              new Date(latestSim.ENDDATE)
+            );
+            oStrategyResultModel.setProperty(
+              "/TOTAL_BOUGHT_UNITS",
+              summary.TOTAL_BOUGHT_UNITS ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/TOTAL_SOLD_UNITS",
+              summary.TOTAL_SOLD_UNITS ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/REMAINING_UNITS",
+              summary.REMAINING_UNITS ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/FINAL_CASH",
+              summary.FINAL_CASH ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/FINAL_VALUE",
+              summary.FINAL_VALUE ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/FINAL_BALANCE",
+              summary.FINAL_BALANCE ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/REAL_PROFIT",
+              summary.REAL_PROFIT ?? 0
+            );
+            oStrategyResultModel.setProperty(
+              "/PERCENTAGE_RETURN",
+              summary.PERCENTAGE_RETURN ?? 0
+            );
+            oStrategyResultModel.refresh(true);
+
+            // Actualiza el dataset del VizFrame
+            this._buildDynamicDataset();
+
+            sap.m.MessageToast.show(
+              `Historial para ${sSelectedSymbol} cargado correctamente.`
+            );
+          } catch (err) {
+            console.error(err);
+            sap.m.MessageToast.show(
+              "Error al obtener historial para el símbolo seleccionado."
+            );
+          }
+        },
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
         /**
          * Carga los datos de una simulación específica en el gráfico
          * @param {Object} oSimulation Datos de la simulación
@@ -1101,6 +1306,8 @@ sap.ui.define(
           const oStrategyResultModel = this.getView().getModel(
             "strategyResultModel"
           );
+          oStrategyResultModel.refresh(true);
+
           let simulationData = oSimulation;
 
           if (oSimulation && oSimulation.SIMULATIONID) {
@@ -1123,48 +1330,76 @@ sap.ui.define(
             }
           }
 
-          // 🔥 Prepara los datos para el modelo
           const aChartData = this._prepareTableData(
             simulationData.CHART_DATA || [],
             simulationData.SIGNALS || []
           );
           const summary = simulationData.SUMMARY || {};
 
-          oStrategyResultModel.setData({
-            hasResults: true,
-            chart_data: aChartData,
-            signals: simulationData.SIGNALS || [],
-            result: summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0,
-            simulationName: simulationData.SIMULATIONNAME,
-            symbol: simulationData.SYMBOL,
-            startDate: new Date(simulationData.STARTDATE),
-            endDate: new Date(simulationData.ENDDATE),
-            TOTAL_BOUGHT_UNITS:
-              summary.TOTAL_BOUGHT_UNITS ?? summary.TOTALBOUGHTUNITS ?? 0,
-            TOTAL_SOLD_UNITS:
-              summary.TOTAL_SOLD_UNITS ?? summary.TOTALSOLDUNITS ?? 0,
-            REMAINING_UNITS:
-              summary.REMAINING_UNITS ?? summary.REMAININGUNITS ?? 0,
-            FINAL_CASH: summary.FINAL_CASH ?? summary.FINALCASH ?? 0,
-            FINAL_VALUE: summary.FINAL_VALUE ?? summary.FINALVALUE ?? 0,
-            FINAL_BALANCE: summary.FINAL_BALANCE ?? summary.FINALBALANCE ?? 0,
-            REAL_PROFIT: summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0,
-            PERCENTAGE_RETURN:
-              summary.PERCENTAGE_RETURN ?? summary.PERCENTAGERETURN ?? 0,
-          });
-
-          // 🔥 Forzar refresh para que la tabla y el VizFrame se actualicen automáticamente
+          // Actualizar modelo
+          oStrategyResultModel.setProperty("/hasResults", true);
+          oStrategyResultModel.setProperty("/chart_data", aChartData);
+          oStrategyResultModel.setProperty(
+            "/signals",
+            simulationData.SIGNALS || []
+          );
+          oStrategyResultModel.setProperty(
+            "/result",
+            summary.REAL_PROFIT ?? summary.REALPROFIT ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/simulationName",
+            simulationData.SIMULATIONNAME
+          );
+          oStrategyResultModel.setProperty("/symbol", simulationData.SYMBOL);
+          oStrategyResultModel.setProperty(
+            "/startDate",
+            new Date(simulationData.STARTDATE)
+          );
+          oStrategyResultModel.setProperty(
+            "/endDate",
+            new Date(simulationData.ENDDATE)
+          );
+          oStrategyResultModel.setProperty(
+            "/TOTAL_BOUGHT_UNITS",
+            summary.TOTAL_BOUGHT_UNITS ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/TOTAL_SOLD_UNITS",
+            summary.TOTAL_SOLD_UNITS ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/REMAINING_UNITS",
+            summary.REMAINING_UNITS ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/FINAL_CASH",
+            summary.FINAL_CASH ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/FINAL_VALUE",
+            summary.FINAL_VALUE ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/FINAL_BALANCE",
+            summary.FINAL_BALANCE ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/REAL_PROFIT",
+            summary.REAL_PROFIT ?? 0
+          );
+          oStrategyResultModel.setProperty(
+            "/PERCENTAGE_RETURN",
+            summary.PERCENTAGE_RETURN ?? 0
+          );
           oStrategyResultModel.refresh(true);
 
-          // 🔥 Actualiza el feed de medidas del gráfico según la estrategia actual
-          this._updateChartMeasuresFeed();
+          // Construir el dataset dinámico y actualizar feeds
+          this._buildDynamicDataset();
 
-          // 🔥 Forzar el re-render del VizFrame
-          const oVizFrame = this.byId("idVizFrame");
-          if (oVizFrame) {
-            oVizFrame.getModel().refresh(true); // Actualiza modelo vinculado
-            oVizFrame.invalidate(); // Fuerza render
-          }
+          MessageToast.show(
+            `Datos de simulación cargados para ${simulationData.SIMULATIONNAME}`
+          );
         },
 
         _parseDate: function (dateValue) {

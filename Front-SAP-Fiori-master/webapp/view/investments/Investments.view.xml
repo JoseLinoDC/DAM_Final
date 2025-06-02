@@ -81,6 +81,7 @@
                                 width="100%"
                             >
                                 <Table
+                                    id="strategyTable"
                                     items="{strategyResultModel>/chart_data}"
                                     width="100%"
                                     growing="true"
@@ -231,44 +232,7 @@
                                                         dataType="date"
                                                     />
                                                 </viz.data:dimensions>
-                                                <viz.data:measures>
-                                                    <viz.data:MeasureDefinition
-                                                        name="PrecioCierre"
-                                                        value="{CLOSE}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="SHORT_MA"
-                                                        value="{SHORT_MA}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="LONG_MA"
-                                                        value="{LONG_MA}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="RSI"
-                                                        value="{RSI}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="SMA"
-                                                        value="{SMA}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="MA"
-                                                        value="{MA}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="ATR"
-                                                        value="{ATR}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="Señal BUY"
-                                                        value="{BUY_SIGNAL}"
-                                                    />
-                                                    <viz.data:MeasureDefinition
-                                                        name="Señal SELL"
-                                                        value="{SELL_SIGNAL}"
-                                                    />
-                                                </viz.data:measures>
+                                                
                                             </viz.data:FlattenedDataset>
                                         </viz:dataset>
                                         <viz:feeds>
