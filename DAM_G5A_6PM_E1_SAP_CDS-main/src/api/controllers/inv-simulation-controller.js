@@ -4,9 +4,11 @@ const {
   simulateSupertrend,
   reversionSimple,
   SimulateMACrossover,
+  SimulateIronCondor,
+
   getAllSimulations,
   getSimulationById,
-  SimulateIronCondor
+  deleteSimulations
 } = require("../services/inv-simulation-service");
 
 class InversionsRoute extends cds.ApplicationService {
@@ -80,6 +82,22 @@ class InversionsRoute extends cds.ApplicationService {
         return {
           ERROR: true,
           MESSAGE: error.message || "Error al obtener la simulación.",
+        };
+      }
+    });
+
+    this.on("deleteSimulations", async (req) => {
+      try {
+        const { simulationIds } = req.data || req.params || req.body || {};
+        if (!simulationIds || !Array.isArray(simulationIds) || simulationIds.length === 0) {
+          throw new Error("Debes proporcionar al menos una simulación.");
+        }
+        const result = await deleteSimulations(simulationIds);
+        return { success: result };
+      } catch (error) {
+        return {
+          ERROR: true,
+          MESSAGE: error.message || "Error al eliminar simulaciones.",
         };
       }
     });

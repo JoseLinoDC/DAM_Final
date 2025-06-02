@@ -1883,12 +1883,24 @@ async function getSimulationById(simulationId) {
   }
 }
 
+async function deleteSimulations(simulationIds) {
+  try {
+    const result = await SimulationModel.deleteMany({
+      SIMULATIONID: { $in: simulationIds }
+    });
+    return result.deletedCount === simulationIds.length;
+  } catch (error) {
+    throw new Error("Error al eliminar simulaciones: " + error.message);
+  }
+}
+
 module.exports = {
   SimulateMomentum,
   simulateSupertrend,
   reversionSimple,
   SimulateMACrossover,
+  SimulateIronCondor,
   getAllSimulations,
   getSimulationById,
-  SimulateIronCondor,
+  deleteSimulations
 };
