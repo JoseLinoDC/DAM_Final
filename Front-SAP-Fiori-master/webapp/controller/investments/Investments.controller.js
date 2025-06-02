@@ -78,6 +78,7 @@ sap.ui.define(
             startDate: null,
             endDate: null,
             controlsVisible: false,
+<<<<<<< Updated upstream
             // Campos específicos para la estrategia Momentum
             shortEMA: 21, // Default EMA corta
             longEMA: 50, // Default EMA larga
@@ -99,14 +100,31 @@ sap.ui.define(
               { key: "Supertrend", text: "Supertrend" },
               { key: "Momentum", text: "Momentum" },
               { key: "IronCondor", text: "Iron Condor" },
+=======
+            width: 1,
+            premium: 0,
+            rsiPeriod: 14,
+            rsiMin: 30,
+            rsiMax: 70,
+            volThreshold: 10000,
+            expiryDays: 30,
+            strategies: [
+              { key: "", text: "Cargando textos..." }, // Placeholder for i18n
+              { key: "MACrossover", text: "Cargando textos..." },
+              { key: "Reversión Simple", text: "Cargando textos..." },
+              { key: "Supertrend", text: "Cargando textos..." },
+              { key: "IronCondor", text: "Cargando textos..." }
+>>>>>>> Stashed changes
             ],
 
             // IMPORTANT: Initialize as an ARRAY of strings for VizFrame FeedItem
             chartMeasuresFeed: ["PrecioCierre", "Señal BUY", "Señal SELL"],
           };
+
           var oStrategyAnalysisModel = new JSONModel(
             oStrategyAnalysisModelData
           );
+          
           this.getView().setModel(
             oStrategyAnalysisModel,
             "strategyAnalysisModel"
@@ -737,8 +755,8 @@ sap.ui.define(
         formatDate: function (oDate) {
           return oDate
             ? DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" }).format(
-                oDate
-              )
+              oDate
+            )
             : null;
         },
 

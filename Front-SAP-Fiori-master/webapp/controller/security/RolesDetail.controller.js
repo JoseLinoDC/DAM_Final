@@ -17,62 +17,61 @@ sap.ui.define([
       } else {
         console.warn("Modelo 'selectedRole' no está disponible");
       }
+      this.applications = this.loadCatalogData("IdApplication");
     },
 
     // Función para cargar los datos del rol desde backend y enriquecer procesos y usuarios
-    async loadRoleDetails(sRoleId) {
-      try {
-        // 1. Obtener rol desde backend
-        const res = await fetch(`http://localhost:3333/api/security/rol/getitem?ID=${encodeURIComponent(sRoleId)}`);
-        const role = await res.json();
+    // async loadRoleDetails(sRoleId) {
+    //   try {
+    //     const res = await fetch(`http://localhost:3333/api/security/rol/getitem?ID=${encodeURIComponent(sRoleId)}`);
+    //     const role = await res.json();
 
-        // 2. Obtener catálogos necesarios
-        const [processes, privileges] = await Promise.all([
-          this.loadCatalogData("IdProcess"),
-          this.loadCatalogData("IdPrivileges")
-        ]);
+    //     // Carga catálogos de aplicaciones y privilegios
+    //     const [applications, privileges] = await Promise.all([
+    //       this.loadCatalogData("IdApplication"),
+    //       this.loadCatalogData("IdPrivileges")
+    //     ]);
 
-        // 3. Enriquecer PRIVILEGES → PROCESSES
-        role.PROCESSES = role.PRIVILEGES.map(p => {
-          const proc = processes.find(pr => pr.VALUEID === p.PROCESSID);
-          const privs = (Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID])
-            .map(pid => privileges.find(pr => pr.VALUEID === pid))
-            .filter(Boolean);
+    //     // Enriquecer cada proceso con los nombres de privilegios
+    //     // ...existing code...
+    //     // Enriquecer cada proceso con los nombres de privilegios
+    //     role.PROCESSES = (role.PRIVILEGES || []).map(p => {
+    //       const appObj = applications.find(a => a.VALUEID === p.APLICATIONID) || {};
+    //       // Asegúrate de que PRIVILEGEID sea un array
+    //       const privilegeIds = Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID];
+    //       const privilegeNames = privilegeIds.map(pid => {
+    //         const priv = privileges.find(x => x.VALUEID === pid);
+    //         return priv ? priv.VALUENAME : pid;
+    //       });
 
-          return {
-            PROCESSID: p.PROCESSID,
-            PROCESSNAME: proc?.VALUE || p.PROCESSID,
-            APPLICATIONNAME: proc?.DESCRIPTION || "-",
-            VIEWNAME: proc?.INDEX || "-",
-            PRIVILEGES: privs.map(x => ({ PRIVILEGENAME: x.VALUE }))
-          };
-        });
-        // 4. Cargar usuarios con este rol
-        const users = await this.loadAllUsers();
-        role.USERS = users
-          .filter(u => u.ROLES?.some(r => r.ROLEID === role.ROLEID))
-          .map(u => ({
-            USERID: u.USERID,
-            USERNAME: u.USERNAME,
-            COMPANYNAME: u.COMPANYNAME,
-            EMPLOYEEID: u.EMPLOYEEID,
-            DEPARTMENT: u.DEPARTMENT
-          }));
+    //       const enriched = {
+    //         APLICATIONID: p.APLICATIONID,
+    //         APLICATIONNAME: appObj.VALUENAME || p.APLICATIONID || "-",
+    //         VIEWID: p.VIEWID,
+    //         VIEWNAME: p.viewInfo?.viewName || p.VIEWID || "-",
+    //         PROCESSID: p.PROCESSID,
+    //         PROCESSNAME: p.processInfo?.name || p.PROCESSID || "-",
+    //         PRIVILEGEID: privilegeIds,
+    //         PRIVILEGENAMES: privilegeNames // <-- Esto es lo que la vista espera
+    //       };
 
-        // 5. Asignar el rol enriquecido al modelo
-        this.getView().getModel("selectedRole").setData(role);
+    //       // Mostrar en consola los datos originales y enriquecidos
+    //       console.log("🔎 Proceso original:", p);
+    //       console.log("✅ Proceso enriquecido:", enriched);
 
-      } catch (error) {
-        MessageBox.error("Error al cargar los detalles del rol: " + error.message);
-      }
-    },
+    //       return enriched;
+    //     });
+
+    //   } catch (error) {
+    //     MessageBox.error("Error al cargar los detalles del rol: " + error.message);
+    //   }
+    // },
 
     // Función para obtener catálogo (IdProcesses, IdPrivileges)
     async loadCatalogData(labelId) {
-      const res = await fetch(`http://localhost:3333/api/security/catalog/getCatalogByLabelId`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ labelId })
+      const res = await fetch(`http://localhost:3333/api/security/values/getLabelById?labelid=${encodeURIComponent(labelId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
       });
       const data = await res.json();
       return data.value || [];

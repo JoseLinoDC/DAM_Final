@@ -41,6 +41,7 @@ sap.ui.define([
       }), "selectedRole");
 
       this.loadRolesData();
+
     },
 
 
@@ -52,6 +53,8 @@ sap.ui.define([
         ROLEID: "",
         ROLENAME: "",
         DESCRIPTION: "",
+        NEW_APLICATIONID: "",
+        NEW_VIEWID: "",
         NEW_PROCESSID: "",
         NEW_PRIVILEGES: [],
         PRIVILEGES: []
@@ -62,11 +65,13 @@ sap.ui.define([
       if (!this._catalogsLoaded) {
         await this.loadCatalog("IdProcess", "processCatalogModel");
         await this.loadCatalog("IdPrivileges", "privilegeCatalogModel");
+        await this.loadPrivilegesCatalog();
         this._catalogsLoaded = true;
       }
     },
 
     onOpenDialog: async function () {
+      await this.loadApplications();
       await this.loadCatalogsOnce(); // ✅ para no volver a cargar
 
       if (!this._pDialog) {
@@ -102,35 +107,67 @@ sap.ui.define([
     onAddPrivilege: function () {
       const oView = this.getView();
 
-      const oModel = oView.getModel("roleDialogModel") || oView.getModel("newRoleModel");
-      const oData = oModel.getData();
+      // Detecta el modelo correcto
+      let oModel, oData;
+      if (
+        oView.getModel("roleDialogModel") &&
+        oView.getModel("roleDialogModel").getData().IS_EDIT
+      ) {
+        oModel = oView.getModel("roleDialogModel");
+        oData = oModel.getData();
+      } else {
+        oModel = oView.getModel("newRoleModel");
+        oData = oModel.getData();
+      }
 
-      const sProcess = oData.NEW_PROCESSID;
+      const sAppId = oData.NEW_APLICATIONID;
+      const sViewId = oData.NEW_VIEWID;
+      const sProcessId = oData.NEW_PROCESSID;
       const aPrivileges = oData.NEW_PRIVILEGES;
 
-      if (!sProcess || !aPrivileges || aPrivileges.length === 0) {
-        MessageToast.show("Selecciona un proceso y al menos un privilegio.");
+      // Solo validamos aplicación y privilegios
+      if (!sAppId || !aPrivileges || aPrivileges.length === 0) {
+        MessageToast.show("Selecciona aplicación y al menos un privilegio.");
         return;
       }
 
-      // Validar que no exista ya este proceso
-      const bExiste = oData.PRIVILEGES.some(p => p.PROCESSID === sProcess);
-      if (bExiste) {
-        MessageToast.show("Ya agregaste privilegios para este proceso.");
-        return;
-      }
+      // Busca los nombres en los modelos correspondientes
+      const aApps = oView.getModel("applicationCatalogModel").getProperty("/values") || [];
+      const aViews = oView.getModel("processCatalogModel").getProperty("/values") || [];
+      const aProcesses = oView.getModel("processListModel").getProperty("/values") || [];
+      const aPrivs = oView.getModel("privilegeCatalogModel").getProperty("/values") || [];
 
-      // Agregar UN objeto con el proceso y TODOS los privilegios juntos (arreglo)
+      const appObj = aApps.find(a => a.VALUEID === sAppId) || {};
+      const viewObj = aViews.find(v => v.VALUEID === sViewId) || {};
+      // Si no hay proceso, coloca "Sin datos"
+      const processObj = aProcesses.find(p => p.VALUEID === sProcessId) || { VALUEID: "", VALUENAME: "Sin datos" };
+
+      // Obtén los nombres de los privilegios seleccionados
+      const privilegeNames = aPrivileges.map(pid => {
+        const priv = aPrivs.find(p => p.VALUEID === pid);
+        return priv ? priv.VALUENAME : pid;
+      });
+
       oData.PRIVILEGES.push({
-        PROCESSID: sProcess,
-        PRIVILEGEID: aPrivileges  // aquí todo el arreglo completo
+        APLICATIONID: appObj.VALUEID,
+        APLICATIONNAME: appObj.VALUENAME,
+        VIEWID: viewObj.VALUEID,
+        VIEWNAME: viewObj.VALUENAME,
+        PROCESSID: processObj.VALUEID,
+        PROCESSNAME: processObj.VALUENAME,
+        PRIVILEGEID: aPrivileges,
+        PRIVILEGENAMES: privilegeNames
       });
 
       // Limpiar las selecciones
+      oData.NEW_APLICATIONID = "";
+      oData.NEW_VIEWID = "";
       oData.NEW_PROCESSID = "";
       oData.NEW_PRIVILEGES = [];
 
-      oModel.setData(oData);
+      // Forzar actualización del modelo y del array
+      oData.PRIVILEGES = oData.PRIVILEGES.slice();
+      oModel.setData(Object.assign({}, oData));
     },
 
     //quitar privilegios
@@ -191,9 +228,9 @@ sap.ui.define([
       const now = new Date();
 
       // Extraer todos los PRIVILEGEIDs como array de string
-      const flatPrivilegeIds = PRIVILEGES.flatMap(p =>
-        Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID]
-      );
+      // const flatPrivilegeIds = PRIVILEGES.flatMap(p =>
+      //   Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID]
+      // );
 
       const payload = {
         roles: {
@@ -211,6 +248,8 @@ sap.ui.define([
           },
           PRIVILEGES: PRIVILEGES.flatMap(p =>
             p.PRIVILEGEID.map(privId => ({
+              APLICATIONID: p.APLICATIONID,
+              VIEWID: p.VIEWID,
               PROCESSID: p.PROCESSID,
               PRIVILEGEID: privId
             }))
@@ -235,7 +274,7 @@ sap.ui.define([
             this.onDialogClose("dialogEditRole");
             this.loadRolesData();
           }
-          this.loadRoles?.(); // si tienes método para recargar roles
+          // this.loadRoles?.(); // si tienes método para recargar roles
         } else {
           MessageBox.error("Error: " + result.message);
         }
@@ -265,15 +304,31 @@ sap.ui.define([
         });
     },
 
+    loadPrivilegesCatalog: async function () {
+      try {
+        const response = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdPrivileges");
+        const data = await response.json();
+        const values = data?.value || [];
+        const simplified = values.map(v => ({
+          VALUEID: v.VALUEID,
+          VALUENAME: v.VALUE
+        }));
+        this.getView().setModel(new JSONModel({ values: simplified }), "privilegeCatalogModel");
+      } catch (err) {
+        Log.error("Error al cargar catálogo de privilegios", err);
+        MessageBox.error("No se pudieron cargar los privilegios.");
+      }
+    },
+
     loadCatalog: async function (labelId, modelName) {
       try {
-        const response = await fetch(`http://localhost:3333/api/security/catalog/getCatalogByLabelId?LabelId=${labelId}`);
+        const response = await fetch(`http://localhost:3333/api/security/values/getLabelById?labelid=${labelId}`);
         const data = await response.json();
 
         const values = data?.VALUES || [];
         const simplified = values.map(v => ({
           VALUEID: v.VALUEID,
-          VALUENAME: v.VALUE  // Puedes usar VALUE, ALIAS, o DESCRIPTION
+          VALUENAME: v.VALUE
         }));
         console.log(`📦 Datos recibidos para ${labelId}:`, simplified);
         this.getView().setModel(new JSONModel({ values: simplified }), modelName);
@@ -285,11 +340,11 @@ sap.ui.define([
 
     loadCatalogData: async function (labelId) {
       try {
-        const res = await fetch(`http://localhost:3333/api/security/catalog/getCatalogByLabelId?LabelId=${labelId}`);
+        const res = await fetch(`http://localhost:3333/api/security/values/getLabelById?labelid=${labelId}`);
         const data = await res.json();
         return data?.VALUES || [];
       } catch (e) {
-        console.error(`Error al cargar catálogo ${labelId}`, e);
+        console.error(`Error al cargar catálogo ${labelId}`);
         return [];
       }
     },
@@ -305,11 +360,28 @@ sap.ui.define([
       }
     },
 
+    loadApplications: async function () {
+      try {
+        const res = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdApplication");
+        const data = await res.json();
+        const values = data.value || [];
+        // Ordenar por VALUENAME (nombre de la aplicación)
+        const simplified = values
+          .map(v => ({
+            VALUEID: v.VALUEID,
+            VALUENAME: v.VALUE
+          }))
+          .sort((a, b) => a.VALUENAME.localeCompare(b.VALUENAME));
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: simplified }), "applicationCatalogModel");
+      } catch (err) {
+        MessageToast.show("Error al cargar aplicaciones");
+      }
+    },
+
     onRoleSelected: async function () {
       const oTable = this.byId("rolesTable");
       const iIndex = oTable.getSelectedIndex();
-      const oModel = this.getView().getModel("selectedRole");
-
+      // const oModel = this.getView().getModel("selectedRole");
       const oUiStateModel = this.getView().getModel("uiState");
 
       // Activar o desactivar botones
@@ -345,39 +417,38 @@ sap.ui.define([
       const sId = encodeURIComponent(oRole.ROLEID);
 
       try {
-        // 1. Obtener rol desde backend (ya incluye viewInfo en los privilegios)
+        // 1. Obtener rol desde backend
         const res = await fetch(`http://localhost:3333/api/security/rol/getitem?ID=${sId}`);
         const role = await res.json();
 
-        // 2. Obtener catálogos necesarios (solo para información adicional)
-        const [privileges, users] = await Promise.all([
-          this.loadCatalogData("IdPrivileges"),
-          this.loadAllUsers()
-        ]);
+        // 2. Obtener catálogo de privilegios
+        const privilegesCatalog = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdPrivileges")
+          .then(r => r.json())
+          .then(d => d.value || []);
 
-        // 3. Transformar PRIVILEGES a PROCESSES con la información de vista
-        role.PROCESSES = role.PRIVILEGES.map(p => {
-          // Obtener nombres de privilegios
-          const privs = (Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID])
-            .map(pid => privileges.find(pr => pr.VALUEID === pid))
-            .filter(Boolean);
-
-          return {
-            PROCESSID: p.PROCESSID,
-            PROCESSNAME: p.PROCESSID, // O puedes usar p.viewInfo?.viewName si prefieres
-            APPLICATIONNAME: p.viewInfo?.viewDescription || "-",
-            VIEWNAME: p.viewInfo?.viewName || "-", // Usamos directamente viewInfo del backend
-            VIEWDESCRIPTION: p.viewInfo?.viewDescription || "",
-            VIEWIMAGE: p.viewInfo?.viewImage || "",
-            PRIVILEGES: privs.map(x => ({
-              PRIVILEGEID: x.VALUEID,
-              PRIVILEGENAME: x.VALUE,
-              PRIVILEGEDESCRIPTION: x.DESCRIPTION
-            }))
-          };
+        // 3. Agrupar privilegios por combinación de proceso y vista
+        const processMap = {};
+        (role.PRIVILEGES || []).forEach(p => {
+          const key = `${p.PROCESSID}__${p.VIEWID}`;
+          if (!processMap[key]) {
+            processMap[key] = {
+              PROCESSID: p.PROCESSID,
+              PROCESSNAME: p.processInfo?.name || p.PROCESSID || "-",
+              APLICATIONNAME: p.viewInfo?.viewDescription || "-",
+              VIEWNAME: p.viewInfo?.viewName || p.VIEWID || "-",
+              PRIVILEGENAMES: [],
+            };
+          }
+          // Buscar el nombre del privilegio en el catálogo
+          const privObj = privilegesCatalog.find(pr => pr.VALUEID === p.PRIVILEGEID);
+          processMap[key].PRIVILEGENAMES.push(privObj ? privObj.VALUE : p.PRIVILEGEID);
         });
 
-        // 4. Filtrar usuarios del rol
+        // 4. Asignar el arreglo de procesos agrupados al modelo
+        role.PROCESSES = Object.values(processMap);
+
+        // 5. (Opcional) Usuarios del rol
+        const users = await this.loadAllUsers();
         role.USERS = users
           .filter(u => u.ROLES?.some(r => r.ROLEID === role.ROLEID))
           .map(u => ({
@@ -385,40 +456,116 @@ sap.ui.define([
             USERNAME: u.USERNAME || `${u.NAME ?? ""} ${u.LASTNAME ?? ""}`.trim()
           }));
 
-        // 5. Asignar el modelo enriquecido
+        // 6. Asignar el modelo enriquecido
         this.getOwnerComponent().setModel(new JSONModel(role), "selectedRole");
-
-        // 6. Opcional: Agrupar por vista si lo necesitas
-        this._groupPrivilegesByView(role);
 
       } catch (e) {
         MessageBox.error("Error al obtener el rol: " + e.message);
       }
     },
 
-    // Función auxiliar para agrupar privilegios por vista (opcional)
-    _groupPrivilegesByView: function (role) {
-      const grouped = {};
+    onApplicationChange: async function (oEvent) {
+      const oSource = oEvent.getSource();
+      // Detecta el modelo correcto
+      const oContext = oSource.getBindingContext("newRoleModel") || oSource.getBindingContext("roleDialogModel");
+      const sModelName = oContext ? oContext.getModel().sName : "newRoleModel";
+      const oModel = this.getView().getModel(sModelName);
 
-      role.PRIVILEGES.forEach(p => {
-        const viewKey = p.viewInfo?.viewName || "Sin vista asignada";
-        if (!grouped[viewKey]) {
-          grouped[viewKey] = {
-            VIEWNAME: viewKey,
-            VIEWDESCRIPTION: p.viewInfo?.viewDescription || "",
-            VIEWIMAGE: p.viewInfo?.viewImage || "",
-            PRIVILEGES: []
-          };
-        }
-        grouped[viewKey].PRIVILEGES.push(p);
-      });
+      const sAppId = oSource.getSelectedKey();
+      if (!sAppId) {
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: [] }), "processCatalogModel");
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: [] }), "processListModel");
+        return;
+      }
 
-      role.GROUPED_PRIVILEGES = Object.values(grouped);
-      return role;
+      // Limpia la vista y proceso seleccionados
+      oModel.setProperty("/NEW_VIEWID", "");
+      oModel.setProperty("/NEW_PROCESSID", "");
+
+      try {
+        const res = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdViews");
+        const data = await res.json();
+        const allViews = data.value || [];
+        const filtered = allViews
+          .filter(v => v.VALUEPAID === `IdApplication-${sAppId}`)
+          .map(v => ({
+            VALUEID: v.VALUEID,
+            VALUENAME: v.VALUE,
+          }))
+          .sort((a, b) => a.VALUENAME.localeCompare(b.VALUENAME));
+
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: filtered }), "processCatalogModel");
+      } catch (err) {
+        MessageToast.show("Error al cargar vistas");
+      }
     },
+
+    onViewChange: async function (oEvent) {
+      const oSource = oEvent.getSource();
+      // Detecta el modelo correcto
+      const oContext = oSource.getBindingContext("newRoleModel") || oSource.getBindingContext("roleDialogModel");
+      const sModelName = oContext ? oContext.getModel().sName : "newRoleModel";
+      const oModel = this.getView().getModel(sModelName);
+
+      const sViewId = oSource.getSelectedKey();
+      if (!sViewId) {
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: [] }), "processListModel");
+        return;
+      }
+
+      // Limpia el proceso seleccionado
+      oModel.setProperty("/NEW_PROCESSID", "");
+
+      try {
+        const res = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdProcess");
+        const data = await res.json();
+        const allProcesses = data.value || [];
+        const filtered = allProcesses
+          .filter(p => p.VALUEPAID === `IdViews-${sViewId}`)
+          .map(p => ({
+            VALUEID: p.VALUEID,
+            VALUENAME: p.VALUE
+          }))
+          .sort((a, b) => a.VALUENAME.localeCompare(b.VALUENAME));
+
+        if (filtered.length === 0) {
+          filtered.push({
+            VALUEID: "",
+            VALUENAME: "Sin datos",
+            DISABLED: true
+          });
+        }
+
+        this.getView().setModel(new sap.ui.model.json.JSONModel({ values: filtered }), "processListModel");
+      } catch (err) {
+        MessageToast.show("Error al cargar procesos");
+      }
+    },
+
+    // Función auxiliar para agrupar privilegios por vista (opcional)
+    // _groupPrivilegesByView: function (role) {
+    //   const grouped = {};
+
+    //   role.PRIVILEGES.forEach(p => {
+    //     const viewKey = p.viewInfo?.viewName || "Sin vista asignada";
+    //     if (!grouped[viewKey]) {
+    //       grouped[viewKey] = {
+    //         VIEWNAME: viewKey,
+    //         VIEWDESCRIPTION: p.viewInfo?.viewDescription || "",
+    //         VIEWIMAGE: p.viewInfo?.viewImage || "",
+    //         PRIVILEGES: []
+    //       };
+    //     }
+    //     grouped[viewKey].PRIVILEGES.push(p);
+    //   });
+
+    //   role.GROUPED_PRIVILEGES = Object.values(grouped);
+    //   return role;
+    // },
 
     //abrir ventana edit Role
     onUpdateRole: async function () {
+      await this.loadApplications();
       const oView = this.getView();
       const oSelectedRole = this.getOwnerComponent().getModel("selectedRole").getData();
 
@@ -428,24 +575,85 @@ sap.ui.define([
       }
 
       await this.loadCatalogsOnce();
+      const aPrivs = this.getView().getModel("privilegeCatalogModel").getProperty("/values") || [];
 
-      const privilegesFormatted = (oSelectedRole.PROCESSES || []).map(proc => ({
-        PROCESSID: proc.PROCESSID,
-        PRIVILEGEID: (proc.PRIVILEGES || []).map(p => p.PRIVILEGENAME)  // o PRIVILEGEID si corresponde
-      }));
+      // Puedes dejar los campos de nuevo privilegio vacíos o con los valores del primer privilegio si quieres precargar
+      const firstPrivilege = (oSelectedRole.PRIVILEGES && oSelectedRole.PRIVILEGES[0]) || {};
+      const sAppId = firstPrivilege.APLICATIONID || "";
+      const sViewId = firstPrivilege.VIEWID || "";
+      const sProcessId = firstPrivilege.PROCESSID || "";
+      const aApps = this.getView().getModel("applicationCatalogModel").getProperty("/values") || [];
 
+      // Mapea los privilegios para la tabla
+      const privilegesFormatted = (oSelectedRole.PRIVILEGES || []).map(p => {
+        const appObj = aApps.find(a => a.VALUEID === p.APLICATIONID) || {};
+        return {
+          APLICATIONID: p.APLICATIONID,
+          APLICATIONNAME: appObj.VALUENAME || p.APLICATIONID || "-",
+          VIEWID: p.VIEWID,
+          VIEWNAME: p.viewInfo?.viewName || p.VIEWID || "-",
+          PROCESSID: p.PROCESSID,
+          PROCESSNAME: p.processInfo?.name || p.PROCESSID || "-",
+          PRIVILEGEID: Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID],
+          PRIVILEGENAMES: (Array.isArray(p.PRIVILEGEID) ? p.PRIVILEGEID : [p.PRIVILEGEID]).map(pid => {
+            const priv = aPrivs.find(x => x.VALUEID === pid);
+            return priv ? priv.VALUENAME : pid;
+          })
+        };
+      });
+
+      // Prepara el modelo de edición
+      // ...existing code...
       const oModel = new JSONModel({
         OLD_ROLEID: oSelectedRole.ROLEID,
         ROLEID: oSelectedRole.ROLEID,
         ROLENAME: oSelectedRole.ROLENAME,
         DESCRIPTION: oSelectedRole.DESCRIPTION,
         PRIVILEGES: privilegesFormatted,
+        NEW_APLICATIONID: "",
+        NEW_VIEWID: "",
         NEW_PROCESSID: "",
         NEW_PRIVILEGES: [],
         IS_EDIT: true
       });
 
       oView.setModel(oModel, "roleDialogModel");
+
+      // --- Filtra las vistas según la aplicación seleccionada ---
+      if (sAppId) {
+        try {
+          const resViews = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdViews");
+          const dataViews = await resViews.json();
+          const allViews = dataViews.value || [];
+          const filteredViews = allViews
+            .filter(v => v.VALUEPAID === `IdApplication-${sAppId}`)
+            .map(v => ({
+              VALUEID: v.VALUEID,
+              VALUENAME: v.VALUE,
+            }));
+          oView.setModel(new sap.ui.model.json.JSONModel({ values: filteredViews }), "processCatalogModel");
+        } catch (err) {
+          MessageToast.show("Error al cargar vistas");
+        }
+      }
+
+      // --- Filtra los procesos según la vista seleccionada ---
+      if (sViewId) {
+        try {
+          const resProc = await fetch("http://localhost:3333/api/security/values/getLabelById?labelid=IdProcess");
+          const dataProc = await resProc.json();
+          const allProc = dataProc.value || [];
+          const filteredProc = allProc
+            .filter(p => p.VALUEPAID === `IdViews-${sViewId}`)
+            .map(p => ({
+              VALUEID: p.VALUEID,
+              VALUENAME: p.VALUE
+            }));
+          oView.setModel(new sap.ui.model.json.JSONModel({ values: filteredProc }), "processListModel");
+        } catch (err) {
+          MessageToast.show("Error al cargar procesos");
+        }
+      }
 
       if (!this._pEditDialog) {
         this._pEditDialog = await Fragment.load({
@@ -579,6 +787,8 @@ sap.ui.define([
       });
     },
 
+
+
     _handleRoleAction: function (options) {
       const oView = this.getView();
       const oTable = this.byId("rolesTable");
@@ -619,7 +829,7 @@ sap.ui.define([
       });
     },
 
-    // ...existing code...
+    // Para la multibusqueda de los roles
     onMultiSearch: function () {
       const sQueryRaw = this.byId("searchRoleName").getValue();
       const sQuery = this._normalizeText(sQueryRaw);

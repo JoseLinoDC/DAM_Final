@@ -31,7 +31,6 @@
             icon="sap-icon://accept"
             press=".onActivateRole"
             enabled="{uiState>/activateButtonEnabled}"
-            visible="{= !${DETAIL_ROW/ACTIVED} }"
         />
         <m:Button
             text="Desactivar"

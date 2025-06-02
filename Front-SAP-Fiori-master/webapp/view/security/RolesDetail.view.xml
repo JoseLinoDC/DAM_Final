@@ -79,19 +79,9 @@
                     <tl:Column>
                         <m:Label text="Privilegios" />
                         <tl:template>
-                            <m:HBox wrap="Wrap">
-                                <m:FlexBox
-                                    wrap="Wrap"
-                                    items="{selectedRole>PRIVILEGES}"
-                                >
-                                    <m:items>
-                                        <m:ObjectStatus
-                                            text="{selectedRole>PRIVILEGENAME}"
-                                            class="sapUiTinyMarginEnd sapUiTinyMarginTop"
-                                        />
-                                    </m:items>
-                                </m:FlexBox>
-                            </m:HBox>
+                            <m:Text
+                                text="{= (${selectedRole>PRIVILEGENAMES} || []).join(', ') }"
+                            />
                         </tl:template>
                     </tl:Column>
 
@@ -105,10 +95,9 @@
                     <tl:Column>
                         <m:Label text="Aplicación" />
                         <tl:template>
-                            <m:Text text="{selectedRole>APPLICATIONNAME}" />
+                            <m:Text text="{selectedRole>APLICATIONNAME}" />
                         </tl:template>
                     </tl:Column>
-                    
                 </tl:columns>
             </tl:Table>
         </m:Panel>
