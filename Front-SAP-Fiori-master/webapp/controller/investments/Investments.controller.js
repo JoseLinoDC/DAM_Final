@@ -137,6 +137,41 @@ sap.ui.define(
                   result: 3400.8,
                   status: "En Proceso",
                 },
+                {
+                  date: new Date(2024, 4, 18),
+                  strategyName: "Moving Average Crossover 4",
+                  symbol: "AMZN",
+                  result: 1850.0,
+                  status: "Completado",
+                },
+                {
+                  date: new Date(2024, 4, 19),
+                  strategyName: "Moving Average Crossover 5",
+                  symbol: "GOOGL",
+                  result: 2100.4,
+                  status: "En Proceso",
+                },
+                {
+                  date: new Date(2024, 4, 20),
+                  strategyName: "Moving Average Crossover 6",
+                  symbol: "NFLX",
+                  result: -800.2,
+                  status: "Completado",
+                },
+                {
+                  date: new Date(2024, 4, 21),
+                  strategyName: "Moving Average Crossover 7",
+                  symbol: "NVDA",
+                  result: 3900.9,
+                  status: "Completado",
+                },
+                {
+                  date: new Date(2024, 4, 22),
+                  strategyName: "Moving Average Crossover 8",
+                  symbol: "META",
+                  result: 1500.1,
+                  status: "En Proceso",
+                },
               ],
               filteredCount: 0,
               selectedCount: 0,
@@ -401,6 +436,11 @@ sap.ui.define(
               { symbol: "AAPL", name: "Apple" },
               { symbol: "MSFT", name: "Microsoft" },
               { symbol: "IBM", name: "IBM" },
+              { symbol: "AMZN", name: "Amazon" },
+              { symbol: "GOOGL", name: "Alphabet (Google)" },
+              { symbol: "NFLX", name: "Netflix" },
+              { symbol: "NVDA", name: "NVIDIA" },
+              { symbol: "META", name: "Meta Platforms" },
             ],
           });
           this.getView().setModel(oSymbolModel, "symbolModel");
@@ -1170,8 +1210,7 @@ sap.ui.define(
           }
         },
 
-
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         //Muestra el historial de datos de simulación una empresa específica
         onSymbolChange: async function (oEvent) {
@@ -1290,7 +1329,7 @@ sap.ui.define(
           }
         },
 
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------------------------------------------------------------------------------
         /**
          * Carga los datos de una simulación específica en el gráfico
          * @param {Object} oSimulation Datos de la simulación
