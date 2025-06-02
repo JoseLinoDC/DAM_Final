@@ -154,9 +154,8 @@
                                                 <Text
                                                     text="{= ${strategyResultModel>RULES} || '-'}"
                                                 />
-                                                <Text
-                                                    text="{= ${strategyResultModel>SHARES} || '-'}"
-                                                />
+                                                <Text text="{ path: 'strategyResultModel>SHARES', formatter: 'formatter.formatShares' }" />
+
                                             </cells>
                                         </ColumnListItem>
                                     </items>

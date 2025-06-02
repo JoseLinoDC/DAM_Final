@@ -2,7 +2,8 @@ const SimulationModel = require("../models/mongodb/simulations");
 const axios = require("axios");
 require("dotenv").config(); //para usar el .env despues
 // const API_KEY = "7NONLRJ6ARKI0BA4";
-const API_KEY = "4NCHFPILY0107FYG";
+// const API_KEY = "4NCHFPILY0107FYG";
+const API_KEY = "HJ168GZFTJ5G77U5";
 
 async function SimulateMomentum(body) {
   // const { SYMBOL, STARTDATE, ENDDATE, AMOUNT, USERID, SPECS } = req || {};
@@ -306,54 +307,89 @@ async function SimulateMomentum(body) {
       const volumenAnterior = historialpricesFiltrado[i - 1]?.VOLUME || 0;
       const volumenActual = priceDia.VOLUME;
 
-      const adxSubiendo = actual.ADX > 25;
-
-      const rsiCondicion = actual.RSI > 55 && actual.RSI < 75;
-      const volumenSubiendo = volumenActual > volumenAnterior;
+      const adxFuerte = actual.ADX > 25;
+      const rsiModerado = actual.RSI > 55 && actual.RSI < 75;
+      const rsiAlto = actual.RSI > 65;
+      const rsiBajo = actual.RSI < 50;
       const cruceAlcista = actual.SHORT > actual.LONG;
+      const cruceBajista =
+        anterior.SHORT > anterior.LONG && actual.SHORT < actual.LONG;
+      const volumenCreciente = volumenActual > volumenAnterior;
+      const volumenSignificativo = volumenActual > volumenAnterior * 1.5;
+      const volumenDebil = volumenActual < volumenAnterior * 0.8;
+      const precioDebajoMAs = precio < actual.SHORT && precio < actual.LONG;
+      const adxDebil = actual.ADX < 20;
 
-      // COMPRA
-      if (
-        (rsiCondicion && adxSubiendo && volumenSubiendo) ||
-        (cruceAlcista && rsiCondicion && adxSubiendo && volumenSubiendo)
-      ) {
+      // 🟢 Señales BUY más detalladas
+      if (cruceAlcista && rsiModerado && adxFuerte && volumenCreciente) {
         señales.push({
           DATE: actual.DATE,
           TYPE: "buy",
           PRICE: precio,
-          REASONING: "Golden Cross con RSI, ADX y volumen confirmando momentum",
+          REASONING:
+            "BUY: Cruce alcista confirmado con EMA corta sobre larga, RSI entre 55-75 indicando momentum saludable, ADX fuerte (>25) mostrando tendencia y volumen creciente.",
+        });
+      }
+      if (rsiAlto && adxFuerte && volumenSignificativo) {
+        señales.push({
+          DATE: actual.DATE,
+          TYPE: "buy",
+          PRICE: precio,
+          REASONING:
+            "BUY: RSI alto (>65) sugiriendo fuerte momentum, ADX fuerte (>25) indicando tendencia clara, volumen >50% superior al día anterior.",
+        });
+      }
+      if (adxFuerte && cruceAlcista && volumenSignificativo && rsiAlto) {
+        señales.push({
+          DATE: actual.DATE,
+          TYPE: "buy",
+          PRICE: precio,
+          REASONING:
+            "BUY: Confirmación total de tendencia: cruce alcista, ADX >25, volumen 50% superior y RSI alto (>65).",
         });
       }
 
-      // VENTA - basta con que se cumplan 3 de estas
-      const cruceBajista =
-        anterior.SHORT > anterior.LONG && actual.SHORT < actual.LONG;
-      const precioDebajoMAs = precio < actual.SHORT && precio < actual.LONG;
-      const rsiBaja = actual.RSI < 55;
-      const adxDebil = actual.ADX < 20;
-      const volumenNegativo =
-        (precio > anterior.CLOSE && volumenActual < volumenAnterior) ||
-        (precio < anterior.CLOSE && volumenActual > volumenAnterior);
+      // 🔴 Señales SELL más detalladas
+      const condicionesSell = [
+        {
+          cond: cruceBajista,
+          desc: "cruce bajista (EMA corta por debajo de EMA larga)",
+        },
+        { cond: precioDebajoMAs, desc: "precio por debajo de medias móviles" },
+        { cond: rsiBajo, desc: "RSI bajo (<50), señal de debilidad" },
+        { cond: adxDebil, desc: "ADX débil (<20), tendencia sin fuerza" },
+        { cond: volumenDebil, desc: "volumen <80% del día anterior" },
+      ];
 
-      const señalesVenta = [
-        cruceBajista,
-        precioDebajoMAs,
-        rsiBaja,
-        adxDebil,
-        volumenNegativo,
-      ].filter(Boolean).length;
+      const motivos = condicionesSell.filter((c) => c.cond).map((c) => c.desc);
+      if (motivos.length >= 3) {
+        señales.push({
+          DATE: actual.DATE,
+          TYPE: "sell",
+          PRICE: precio,
+          REASONING: `SELL: ${motivos.join(", ")}.`,
+        });
+      }
 
-      if (señalesVenta >= 3) {
+      if (actual.RSI < 40 && adxDebil && !cruceAlcista) {
         señales.push({
           DATE: actual.DATE,
           TYPE: "sell",
           PRICE: precio,
           REASONING:
-            "Múltiples señales de salida detectadas (cruce bajista, RSI bajando, ADX débil, volumen dudoso)",
+            "SELL: RSI muy bajo (<40) confirmando debilidad, ADX débil (<20) sin tendencia clara y sin cruce alcista.",
+        });
+      }
+      if (cruceBajista && volumenDebil) {
+        señales.push({
+          DATE: actual.DATE,
+          TYPE: "sell",
+          PRICE: precio,
+          REASONING:
+            "SELL: Cruce bajista y volumen debilitado (<80% del día anterior) sugiriendo pérdida de momentum.",
         });
       }
     }
-
     return { SEÑALES: señales };
   }
 
@@ -668,7 +704,6 @@ async function simulateSupertrend(body) {
 
     for (let i = MALENGTH; i < prices.length; i++) {
       if (prices.length < MALENGTH) {
-        // Verifica si hay suficientes datos para la simulación
         throw new Error("No hay suficientes datos para la simulación.");
       }
 
@@ -684,56 +719,120 @@ async function simulateSupertrend(body) {
       let profitLoss = 0;
       let sharesTransacted = 0;
 
-      // Lógica de COMPRA (El precio cierra por encima de la MA, y la tendencia es alcista, y el precio del dia anterior estaba por debajo de la MA)
-      if (!position && cash > 0 && trendUp && closes[i - 1] < ma[i - 1]) {
-        const invest = cash * 1; // Invierto todo el capital disponible, previamente solo se usaba el 50%
-        shares = invest / close;
-        cash -= invest;
-        position = {
-          entryPrice: close,
-          stop: close - stopDistance,
-          limit: close + profitDistance,
-        };
-        currentSignal = "buy";
-        reasoning = "Tendencia alcista identificada.";
-        sharesTransacted = shares; // Registrar unidades compradas
+      // 🟢 BUY - Reglas más descriptivas y específicas
+      if (!position && cash > 0) {
+        if (trendUp && closes[i - 1] < ma[i - 1]) {
+          const invest = cash * 1;
+          shares = invest / close;
+          cash -= invest;
+          position = {
+            entryPrice: close,
+            stop: close - stopDistance,
+            limit: close + profitDistance,
+          };
+          currentSignal = "buy";
+          reasoning =
+            "BUY: Cruce alcista (precio cruzando por encima de MA), confirmando cambio de tendencia al alza y estableciendo stop-loss y objetivo de ganancias.";
+          sharesTransacted = shares;
+        } else if (trendUp && atrVals[i] > atrVals[i - 1]) {
+          const invest = cash * 0.5;
+          shares = invest / close;
+          cash -= invest;
+          position = {
+            entryPrice: close,
+            stop: close - stopDistance,
+            limit: close + profitDistance,
+          };
+          currentSignal = "buy";
+          reasoning =
+            "BUY: Confirmación de tendencia alcista y aumento de volatilidad (ATR creciente), indicando mayor momentum alcista.";
+          sharesTransacted = shares;
+        } else if (
+          trendUp &&
+          ma[i] > ma[i - 1] &&
+          atrVals[i] > atrVals[i - 1]
+        ) {
+          const invest = cash * 0.7;
+          shares = invest / close;
+          cash -= invest;
+          position = {
+            entryPrice: close,
+            stop: close - stopDistance,
+            limit: close + profitDistance,
+          };
+          currentSignal = "buy";
+          reasoning =
+            "BUY: MA creciente, ATR creciente y precio por encima de MA, combinación fuerte de tendencia alcista sostenida y aumento de volatilidad.";
+          sharesTransacted = shares;
+        }
       }
-      // Lógica de VENTA  (El precio alcanza el nivel objetivo o, el precio cae hasta el nivel del stop-loss o, el precio cierra por debajo de la MA)
+
+      // 🔴 SELL - Reglas más detalladas y condiciones combinadas
       else if (position) {
-        if (close >= position.limit || close <= position.stop || trendDown) {
-          const soldShares = shares; // Guardar unidades antes de resetear
+        if (close >= position.limit) {
+          const soldShares = shares;
           cash += soldShares * close;
           profitLoss = (close - position.entryPrice) * soldShares;
           realProfit += profitLoss;
           currentSignal = "sell";
-          if (close >= position.limit) {
-            reasoning = "Precio objetivo alcanzado.";
-          }
-          if (close <= position.stop) {
-            reasoning = "Stop-loss alcanzado.";
-          }
-          if (trendDown) {
-            reasoning = "Precio por debajo de la MA";
-          }
-          sharesTransacted = soldShares; // Registrar unidades vendidas
-          shares = 0; // Resetear después de registrar
+          reasoning =
+            "SELL: Objetivo de ganancias alcanzado (precio >= límite). Venta para asegurar beneficios.";
+          sharesTransacted = soldShares;
+          shares = 0;
+          position = null;
+        } else if (close <= position.stop) {
+          const soldShares = shares;
+          cash += soldShares * close;
+          profitLoss = (close - position.entryPrice) * soldShares;
+          realProfit += profitLoss;
+          currentSignal = "sell";
+          reasoning =
+            "SELL: Activación de stop-loss (precio <= stop), protegiendo el capital contra mayores pérdidas.";
+          sharesTransacted = soldShares;
+          shares = 0;
+          position = null;
+        } else if (trendDown && atrVals[i] > atrVals[i - 1]) {
+          const soldShares = shares;
+          cash += soldShares * close;
+          profitLoss = (close - position.entryPrice) * soldShares;
+          realProfit += profitLoss;
+          currentSignal = "sell";
+          reasoning =
+            "SELL: Confirmación de tendencia bajista (precio debajo de MA) y aumento de volatilidad (ATR creciente), anticipando corrección o reversión.";
+          sharesTransacted = soldShares;
+          shares = 0;
+          position = null;
+        } else if (
+          trendDown &&
+          close < ma[i - 1] &&
+          atrVals[i] > atrVals[i - 1]
+        ) {
+          const soldShares = shares;
+          cash += soldShares * close;
+          profitLoss = (close - position.entryPrice) * soldShares;
+          realProfit += profitLoss;
+          currentSignal = "sell";
+          reasoning =
+            "SELL: Tendencia bajista consolidada (precio debajo de MA y MA decreciente), ATR creciente, indicando posible cambio de ciclo.";
+          sharesTransacted = soldShares;
+          shares = 0;
           position = null;
         }
       }
 
-      // Registrar la señal (compra o venta)
+      // Registro de señal
       if (currentSignal) {
         signals.push({
           DATE: bar.DATE,
           TYPE: currentSignal,
           PRICE: parseFloat(close.toFixed(2)),
           REASONING: reasoning,
-          SHARES: parseFloat(sharesTransacted.toFixed(15)), // Usar sharesTransacted
+          SHARES: parseFloat(sharesTransacted.toFixed(15)),
           PROFIT: parseFloat(profitLoss.toFixed(2)),
         });
       }
 
-      // Datos para el gráfico
+      // Registro de datos para el gráfico
       chartData.push({
         ...bar,
         INDICATORS: [
@@ -973,17 +1072,17 @@ async function reversionSimple(body) {
     const NEW_CHART_DATA = []; // Datos para la visualización en un gráfico (modificado)
 
     // Bucle principal de la simulación, iterando sobre los precios filtrados.
+    // Bucle principal de la simulación, iterando sobre los precios filtrados.
     for (let I = 0; I < FILTERED_PRICES.length; I++) {
       const {
         DATE,
         OPEN,
         HIGH,
         LOW,
-        CLOSE: PRICE, // Renombra CLOSE a PRICE para mayor claridad
+        CLOSE: PRICE,
         VOLUME,
       } = FILTERED_PRICES[I];
 
-      // Ignora las fechas fuera del rango de simulación (ya filtradas, pero como doble chequeo).
       if (
         new Date(DATE) < new Date(STARTDATE) ||
         new Date(DATE) > new Date(ENDDATE)
@@ -998,41 +1097,62 @@ async function reversionSimple(body) {
       let UNITS_TRANSACTED = 0;
       let PROFIT_LOSS = 0;
 
-      // Lógica de la estrategia: Señal de COMPRA
-      // Compra si el precio está significativamente por debajo del SMA y hay efectivo disponible.
+      // 🟢 Señales BUY mejoradas con descripciones detalladas
       if (PRICE < SMA * 0.98 && CASH > 0) {
-        const INVESTMENT_AMOUNT = CASH * 0.5; // Invierte el 50% del efectivo disponible
+        const INVESTMENT_AMOUNT = CASH * 0.5;
         UNITS_TRANSACTED = INVESTMENT_AMOUNT / PRICE;
-        const SPENT = UNITS_TRANSACTED * PRICE;
+        CASH -= UNITS_TRANSACTED * PRICE;
         UNITS_HELD += UNITS_TRANSACTED;
-        CASH -= SPENT;
         TOTAL_BOUGHT_UNITS += UNITS_TRANSACTED;
-        // Registra la compra para el cálculo FIFO.
         BOUGHT_PRICES.push({ DATE, PRICE, UNITS: UNITS_TRANSACTED });
 
-        CURRENT_SIGNAL_TYPE = "buy"; // Cambiado a minúsculas
-        CURRENT_REASONING = `EL PRECIO ESTÁ POR DEBAJO DEL 98% DEL SMA. RSI: ${RSI.toFixed(
+        CURRENT_SIGNAL_TYPE = "buy";
+        CURRENT_REASONING = `BUY: Precio por debajo del 98% de SMA (precio: ${PRICE.toFixed(
           2
-        )}`;
+        )}, SMA: ${SMA?.toFixed(
+          2
+        )}), sugiriendo oportunidad por reversión alcista. RSI: ${RSI?.toFixed(
+          2
+        )}.`;
+      } else if (RSI < 30 && CASH > 0) {
+        const INVESTMENT_AMOUNT = CASH * 0.3;
+        UNITS_TRANSACTED = INVESTMENT_AMOUNT / PRICE;
+        CASH -= UNITS_TRANSACTED * PRICE;
+        UNITS_HELD += UNITS_TRANSACTED;
+        TOTAL_BOUGHT_UNITS += UNITS_TRANSACTED;
+        BOUGHT_PRICES.push({ DATE, PRICE, UNITS: UNITS_TRANSACTED });
+
+        CURRENT_SIGNAL_TYPE = "buy";
+        CURRENT_REASONING = `BUY: RSI muy bajo (<30), señal de sobreventa indicando potencial rebote alcista. Precio: ${PRICE.toFixed(
+          2
+        )}, RSI: ${RSI?.toFixed(2)}.`;
+      } else if (PRICE < SMA * 0.99 && RSI < 35 && CASH > 0) {
+        const INVESTMENT_AMOUNT = CASH * 0.4;
+        UNITS_TRANSACTED = INVESTMENT_AMOUNT / PRICE;
+        CASH -= UNITS_TRANSACTED * PRICE;
+        UNITS_HELD += UNITS_TRANSACTED;
+        TOTAL_BOUGHT_UNITS += UNITS_TRANSACTED;
+        BOUGHT_PRICES.push({ DATE, PRICE, UNITS: UNITS_TRANSACTED });
+
+        CURRENT_SIGNAL_TYPE = "buy";
+        CURRENT_REASONING = `BUY: Precio cercano al 99% de SMA y RSI <35, combinación que sugiere reversión con baja sobreventa.`;
       }
-      // Lógica de la estrategia: Señal de VENTA
-      // Vende si el precio está significativamente por encima del SMA y hay unidades en posesión.
+
+      // 🔴 Señales SELL mejoradas con descripciones detalladas
       else if (PRICE > SMA * 1.02 && UNITS_HELD > 0) {
-        const UNITS_TO_SELL = UNITS_HELD * 0.25; // Vende el 25% de las unidades en posesión
+        const UNITS_TO_SELL = UNITS_HELD * 0.25;
         const REVENUE = UNITS_TO_SELL * PRICE;
         CASH += REVENUE;
         UNITS_HELD -= UNITS_TO_SELL;
         TOTAL_SOLD_UNITS += UNITS_TO_SELL;
         UNITS_TRANSACTED = UNITS_TO_SELL;
 
-        // Lógica FIFO para calcular la ganancia/pérdida real de las unidades vendidas.
         let SOLD_UNITS_COUNTER = UNITS_TO_SELL;
         let COST_OF_SOLD_UNITS = 0;
-        let UNITS_REMOVED_FROM_BOUGHT = []; // Para limpiar el registro de compras
+        let UNITS_REMOVED_FROM_BOUGHT = [];
 
         for (let J = 0; J < BOUGHT_PRICES.length; J++) {
-          if (SOLD_UNITS_COUNTER <= 0) break; // Si ya se vendieron todas las unidades necesarias, salir.
-
+          if (SOLD_UNITS_COUNTER <= 0) break;
           const PURCHASE = BOUGHT_PRICES[J];
           const UNITS_FROM_THIS_PURCHASE = Math.min(
             PURCHASE.UNITS,
@@ -1040,50 +1160,116 @@ async function reversionSimple(body) {
           );
           COST_OF_SOLD_UNITS += UNITS_FROM_THIS_PURCHASE * PURCHASE.PRICE;
           SOLD_UNITS_COUNTER -= UNITS_FROM_THIS_PURCHASE;
-
           BOUGHT_PRICES[J].UNITS -= UNITS_FROM_THIS_PURCHASE;
-          if (BOUGHT_PRICES[J].UNITS <= 0) {
-            UNITS_REMOVED_FROM_BOUGHT.push(J); // Marca las compras agotadas para eliminación.
-          }
+          if (BOUGHT_PRICES[J].UNITS <= 0) UNITS_REMOVED_FROM_BOUGHT.push(J);
         }
-
-        // Elimina las entradas de compras agotadas del registro (en orden inverso para evitar problemas de índice).
         for (let K = UNITS_REMOVED_FROM_BOUGHT.length - 1; K >= 0; K--) {
           BOUGHT_PRICES.splice(UNITS_REMOVED_FROM_BOUGHT[K], 1);
         }
 
-        const AVG_PURCHASE_PRICE_FOR_SOLD_UNITS =
-          COST_OF_SOLD_UNITS / UNITS_TO_SELL;
-        PROFIT_LOSS =
-          (PRICE - AVG_PURCHASE_PRICE_FOR_SOLD_UNITS) * UNITS_TO_SELL;
+        const AVG_PURCHASE_PRICE = COST_OF_SOLD_UNITS / UNITS_TO_SELL;
+        PROFIT_LOSS = (PRICE - AVG_PURCHASE_PRICE) * UNITS_TO_SELL;
         REAL_PROFIT += PROFIT_LOSS;
 
-        CURRENT_SIGNAL_TYPE = "sell"; // Cambiado a minúsculas
-        CURRENT_REASONING = `EL PRECIO ESTÁ POR ENCIMA DEL 102% DEL SMA. RSI: ${RSI.toFixed(
+        CURRENT_SIGNAL_TYPE = "sell";
+        CURRENT_REASONING = `SELL: Precio por encima del 102% SMA (precio: ${PRICE.toFixed(
           2
-        )}`;
+        )}, SMA: ${SMA?.toFixed(
+          2
+        )}), sugiriendo toma de beneficios o reversión bajista. RSI: ${RSI?.toFixed(
+          2
+        )}.`;
+      } else if (RSI > 70 && UNITS_HELD > 0) {
+        const UNITS_TO_SELL = UNITS_HELD * 0.5;
+        const REVENUE = UNITS_TO_SELL * PRICE;
+        CASH += REVENUE;
+        UNITS_HELD -= UNITS_TO_SELL;
+        TOTAL_SOLD_UNITS += UNITS_TO_SELL;
+        UNITS_TRANSACTED = UNITS_TO_SELL;
+
+        let SOLD_UNITS_COUNTER = UNITS_TO_SELL;
+        let COST_OF_SOLD_UNITS = 0;
+        let UNITS_REMOVED_FROM_BOUGHT = [];
+
+        for (let J = 0; J < BOUGHT_PRICES.length; J++) {
+          if (SOLD_UNITS_COUNTER <= 0) break;
+          const PURCHASE = BOUGHT_PRICES[J];
+          const UNITS_FROM_THIS_PURCHASE = Math.min(
+            PURCHASE.UNITS,
+            SOLD_UNITS_COUNTER
+          );
+          COST_OF_SOLD_UNITS += UNITS_FROM_THIS_PURCHASE * PURCHASE.PRICE;
+          SOLD_UNITS_COUNTER -= UNITS_FROM_THIS_PURCHASE;
+          BOUGHT_PRICES[J].UNITS -= UNITS_FROM_THIS_PURCHASE;
+          if (BOUGHT_PRICES[J].UNITS <= 0) UNITS_REMOVED_FROM_BOUGHT.push(J);
+        }
+        for (let K = UNITS_REMOVED_FROM_BOUGHT.length - 1; K >= 0; K--) {
+          BOUGHT_PRICES.splice(UNITS_REMOVED_FROM_BOUGHT[K], 1);
+        }
+
+        const AVG_PURCHASE_PRICE = COST_OF_SOLD_UNITS / UNITS_TO_SELL;
+        PROFIT_LOSS = (PRICE - AVG_PURCHASE_PRICE) * UNITS_TO_SELL;
+        REAL_PROFIT += PROFIT_LOSS;
+
+        CURRENT_SIGNAL_TYPE = "sell";
+        CURRENT_REASONING = `SELL: RSI sobrecomprado (>70), indicando alta probabilidad de retroceso. Precio: ${PRICE.toFixed(
+          2
+        )}, RSI: ${RSI?.toFixed(2)}.`;
+      } else if (PRICE > SMA * 1.03 && RSI > 65 && UNITS_HELD > 0) {
+        const UNITS_TO_SELL = UNITS_HELD * 0.6;
+        const REVENUE = UNITS_TO_SELL * PRICE;
+        CASH += REVENUE;
+        UNITS_HELD -= UNITS_TO_SELL;
+        TOTAL_SOLD_UNITS += UNITS_TO_SELL;
+        UNITS_TRANSACTED = UNITS_TO_SELL;
+
+        let SOLD_UNITS_COUNTER = UNITS_TO_SELL;
+        let COST_OF_SOLD_UNITS = 0;
+        let UNITS_REMOVED_FROM_BOUGHT = [];
+
+        for (let J = 0; J < BOUGHT_PRICES.length; J++) {
+          if (SOLD_UNITS_COUNTER <= 0) break;
+          const PURCHASE = BOUGHT_PRICES[J];
+          const UNITS_FROM_THIS_PURCHASE = Math.min(
+            PURCHASE.UNITS,
+            SOLD_UNITS_COUNTER
+          );
+          COST_OF_SOLD_UNITS += UNITS_FROM_THIS_PURCHASE * PURCHASE.PRICE;
+          SOLD_UNITS_COUNTER -= UNITS_FROM_THIS_PURCHASE;
+          BOUGHT_PRICES[J].UNITS -= UNITS_FROM_THIS_PURCHASE;
+          if (BOUGHT_PRICES[J].UNITS <= 0) UNITS_REMOVED_FROM_BOUGHT.push(J);
+        }
+        for (let K = UNITS_REMOVED_FROM_BOUGHT.length - 1; K >= 0; K--) {
+          BOUGHT_PRICES.splice(UNITS_REMOVED_FROM_BOUGHT[K], 1);
+        }
+
+        const AVG_PURCHASE_PRICE = COST_OF_SOLD_UNITS / UNITS_TO_SELL;
+        PROFIT_LOSS = (PRICE - AVG_PURCHASE_PRICE) * UNITS_TO_SELL;
+        REAL_PROFIT += PROFIT_LOSS;
+
+        CURRENT_SIGNAL_TYPE = "sell";
+        CURRENT_REASONING = `SELL: Precio >103% de SMA y RSI>65, alta probabilidad de retroceso.`;
       }
 
-      // Si se generó una señal (compra o venta), registrarla.
       if (CURRENT_SIGNAL_TYPE) {
         SIGNALS.push({
           DATE,
           TYPE: CURRENT_SIGNAL_TYPE,
           PRICE: parseFloat(PRICE.toFixed(2)),
           REASONING: CURRENT_REASONING,
-          SHARES: parseFloat(UNITS_TRANSACTED.toFixed(15)), // Alta precisión para las unidades
+          SHARES: parseFloat(UNITS_TRANSACTED.toFixed(15)),
           PROFIT: parseFloat(PROFIT_LOSS.toFixed(2)),
         });
       }
 
-      // Añade los datos para el gráfico con la nueva estructura.
+      // Gráfico
       NEW_CHART_DATA.push({
         DATE,
         OPEN: parseFloat(OPEN.toFixed(2)),
         HIGH: parseFloat(HIGH.toFixed(2)),
         LOW: parseFloat(LOW.toFixed(2)),
         CLOSE: parseFloat(PRICE.toFixed(2)),
-        VOLUME: parseFloat(VOLUME.toFixed(0)), // Volumen como entero
+        VOLUME: parseFloat(VOLUME.toFixed(0)),
         INDICATORS: [
           { INDICATOR: "sma", VALUE: parseFloat((SMA ?? 0).toFixed(2)) },
           { INDICATOR: "rsi", VALUE: parseFloat((RSI ?? 0).toFixed(2)) },
@@ -1171,210 +1357,106 @@ async function reversionSimple(body) {
 // MUCHO CODIGO
 
 // Función auxiliar para calcular stop-loss
-function findStopLoss(type, data, currentIndex) {
-  const lookback = 20;
-  const startIndex = Math.max(0, currentIndex - lookback);
-  const slice = data.slice(startIndex, currentIndex);
+// function findStopLoss(type, data, currentIndex) {
+//   const lookback = 20;
+//   const startIndex = Math.max(0, currentIndex - lookback);
+//   const slice = data.slice(startIndex, currentIndex);
 
-  if (type === "buy") {
-    const minLow = Math.min(...slice.map((d) => d.price_history.low));
-    return minLow * 0.99;
-  } else {
-    const maxHigh = Math.max(...slice.map((d) => d.price_history.high));
-    return maxHigh * 1.01;
-  }
-}
+//   if (type === "buy") {
+//     const minLow = Math.min(...slice.map((d) => d.price_history.low));
+//     return minLow * 0.99;
+//   } else {
+//     const maxHigh = Math.max(...slice.map((d) => d.price_history.high));
+//     return maxHigh * 1.01;
+//   }
+// }
 
 function calculateMovingAverageData(
-  fullHistory,
+  history,
   startDate,
   endDate,
-  shortMa,
-  longMa
+  shortPeriod,
+  longPeriod
 ) {
-  if (!fullHistory || fullHistory.length === 0) {
-    throw new Error("Full history data is required");
-  }
-
-  let startIndex = 0;
-  if (startDate) {
-    startIndex = fullHistory.findIndex(
-      (item) => item && item.date >= new Date(startDate)
-    );
-    if (startIndex === -1) startIndex = fullHistory.length - 1;
-    startIndex = Math.max(0, startIndex - longMa);
-  }
-
-  let workingData = fullHistory.slice(startIndex);
-  if (endDate) {
-    workingData = workingData.filter(
-      (item) => item && item.date <= new Date(endDate)
-    );
-  }
-
-  // Validación de datos de trabajo
-  if (workingData.length === 0) {
-    throw new Error("No data available for the selected date range");
-  }
-
-  const dataWithMAs = workingData
-    .map((item, index, array) => {
-      if (!item || !item.close) {
-        console.warn(`Invalid item at index ${index}`);
-        return null;
-      }
-
-      const shortSlice = array.slice(
-        Math.max(0, index - shortMa + 1),
-        index + 1
-      );
-      const longSlice = array.slice(Math.max(0, index - longMa + 1), index + 1);
-
-      return {
-        price_history: {
-          ...item,
-          date: item.date,
-        },
-        short_ma:
-          shortSlice.length >= shortMa
-            ? shortSlice.reduce(
-                (sum, p) => (p && p.close ? sum + p.close : sum),
-                0
-              ) / shortMa
-            : null,
-        long_ma:
-          longSlice.length >= longMa
-            ? longSlice.reduce(
-                (sum, p) => (p && p.close ? sum + p.close : sum),
-                0
-              ) / longMa
-            : null,
-      };
-    })
-    .filter(
-      (item) =>
-        item !== null &&
-        item.price_history &&
-        item.price_history.date &&
-        item.short_ma !== null &&
-        item.long_ma !== null
-    );
+  const result = [];
   const signals = [];
-  let currentPosition = null;
-  let entryPrice = 0;
-  let stopLoss = 0;
-  let takeProfit = 0;
 
-  for (let i = 1; i < dataWithMAs.length; i++) {
-    const prev = dataWithMAs[i - 1];
-    const current = dataWithMAs[i];
+  // Calcular medias móviles
+  for (let i = 0; i < history.length; i++) {
+    const item = history[i];
 
-    if (prev.short_ma < prev.long_ma && current.short_ma > current.long_ma) {
-      if (currentPosition !== "buy") {
-        entryPrice = current.price_history.close;
-        stopLoss = findStopLoss("buy", dataWithMAs, i);
-        takeProfit = entryPrice + 2 * (entryPrice - stopLoss);
+    if (i < longPeriod - 1) {
+      result.push({ ...item, short_ma: null, long_ma: null });
+      continue;
+    }
 
-        signals.push({
-          date: current.price_history.date,
-          type: "buy",
-          price: entryPrice,
-          reasoning: `Golden Cross: ${shortMa}MA crossed above ${longMa}MA`,
-          stopLoss,
-          takeProfit,
-        });
+    const shortSlice = history.slice(i - shortPeriod + 1, i + 1);
+    const longSlice = history.slice(i - longPeriod + 1, i + 1);
 
-        currentPosition = "buy";
-      }
-    } else if (
-      prev.short_ma > prev.long_ma &&
-      current.short_ma < current.long_ma
-    ) {
-      if (currentPosition !== "sell") {
-        entryPrice = current.price_history.close;
-        stopLoss = findStopLoss("sell", dataWithMAs, i);
-        takeProfit = entryPrice - 2 * (stopLoss - entryPrice);
+    const shortMa =
+      shortSlice.reduce((sum, d) => sum + d.close, 0) / shortPeriod;
+    const longMa = longSlice.reduce((sum, d) => sum + d.close, 0) / longPeriod;
 
-        signals.push({
-          date: current.price_history.date,
-          type: "sell",
-          price: entryPrice,
-          reasoning: `Death Cross: ${shortMa}MA crossed below ${longMa}MA`,
-          stopLoss,
-          takeProfit,
-        });
+    result.push({ ...item, short_ma: shortMa, long_ma: longMa });
 
-        currentPosition = "sell";
-      }
-    } else if (currentPosition === "buy") {
-      if (current.price_history.low <= stopLoss) {
-        signals.push({
-          date: current.price_history.date,
-          type: "sell",
-          price: stopLoss,
-          reasoning: `Stop-loss triggered at ${stopLoss}`,
-          isStopLoss: true,
-        });
-        currentPosition = null;
-      } else if (current.price_history.high >= takeProfit) {
-        signals.push({
-          date: current.price_history.date,
-          type: "sell",
-          price: takeProfit,
-          reasoning: `Take-profit triggered at ${takeProfit}`,
-          isTakeProfit: true,
-        });
-        currentPosition = null;
-      }
-    } else if (currentPosition === "sell") {
-      if (current.price_history.high >= stopLoss) {
-        signals.push({
-          date: current.price_history.date,
-          type: "buy",
-          price: stopLoss,
-          reasoning: `Stop-loss triggered at ${stopLoss}`,
-          isStopLoss: true,
-        });
-        currentPosition = null;
-      } else if (current.price_history.low <= takeProfit) {
-        signals.push({
-          date: current.price_history.date,
-          type: "buy",
-          price: takeProfit,
-          reasoning: `Take-profit triggered at ${takeProfit}`,
-          isTakeProfit: true,
-        });
-        currentPosition = null;
-      }
+    if (i < longPeriod) continue;
+
+    const prevShort = result[i - 1].short_ma;
+    const prevLong = result[i - 1].long_ma;
+
+    // 🟢 Señales BUY
+    if (prevShort <= prevLong && shortMa > longMa) {
+      signals.push({
+        date: item.date,
+        type: "buy",
+        price: item.close,
+        reasoning: `BUY: Cruce alcista confirmado. La media corta (${shortMa.toFixed(
+          2
+        )}) cruzó por encima de la media larga (${longMa.toFixed(
+          2
+        )}), indicando cambio positivo en tendencia.`,
+      });
+    } else if (shortMa > longMa && item.close > item.open) {
+      signals.push({
+        date: item.date,
+        type: "buy",
+        price: item.close,
+        reasoning: `BUY: Media corta por encima de la media larga y cierre alcista (cierre > apertura), confirmando tendencia de recuperación.`,
+      });
+    }
+
+    // 🔴 Señales SELL
+    if (prevShort >= prevLong && shortMa < longMa) {
+      signals.push({
+        date: item.date,
+        type: "sell",
+        price: item.close,
+        reasoning: `SELL: Cruce bajista confirmado. La media corta (${shortMa.toFixed(
+          2
+        )}) cruzó por debajo de la media larga (${longMa.toFixed(
+          2
+        )}), indicando posible corrección o reversión.`,
+      });
+    } else if (shortMa < longMa && item.close < item.open) {
+      signals.push({
+        date: item.date,
+        type: "sell",
+        price: item.close,
+        reasoning: `SELL: Media corta por debajo de la media larga y cierre bajista (cierre < apertura), confirmando debilitamiento de tendencia.`,
+      });
+    } else if (shortMa < longMa && item.close < shortMa) {
+      signals.push({
+        date: item.date,
+        type: "sell",
+        price: item.close,
+        reasoning: `SELL: Precio por debajo de la media corta (${shortMa.toFixed(
+          2
+        )}), confirmando posible presión vendedora adicional.`,
+      });
     }
   }
 
-  if (currentPosition && signals.length > 0) {
-    const lastSignal = signals[signals.length - 1];
-    const lastPrice = dataWithMAs[dataWithMAs.length - 1].price_history.close;
-
-    signals.push({
-      date: dataWithMAs[dataWithMAs.length - 1].price_history.date,
-      type: currentPosition === "buy" ? "sell" : "buy",
-      price: lastPrice,
-      reasoning: `Final position closed at end of period`,
-      isFinal: true,
-    });
-  }
-
-  return {
-    priceData: dataWithMAs.map((item) => ({
-      date: item.price_history.date,
-      open: item.price_history.open,
-      high: item.price_history.high,
-      low: item.price_history.low,
-      close: item.price_history.close,
-      volume: item.price_history.volume,
-      short_ma: item.short_ma,
-      long_ma: item.long_ma,
-    })),
-    signals: signals,
-  };
+  return { priceData: result, signals };
 }
 
 function parseSpecs(specsArray) {
@@ -1406,6 +1488,7 @@ function parseSpecs(specsArray) {
 
   return result;
 }
+
 async function SimulateMACrossover(body) {
   try {
     try {
@@ -1676,7 +1759,6 @@ async function SimulateIronCondor(simulation) {
     return { message: `FALTAN PARÁMETROS: ${missingParams.join(", ")}.` };
   }
 
-  // Parsear SPECS
   const specs = SPECS.reduce((acc, { INDICATOR, VALUE }) => {
     acc[INDICATOR.toUpperCase()] = Number(VALUE);
     return acc;
@@ -1688,7 +1770,6 @@ async function SimulateIronCondor(simulation) {
   const rsiMin = specs.RSI_MIN || 30;
   const rsiMax = specs.RSI_MAX || 70;
   const volThreshold = specs.VOL_THRESHOLD || 100000;
-
   const expiryDays = specs.EXPIRY_DAYS || 5;
 
   const API_URL = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&outputsize=full&apikey=${API_KEY}`;
@@ -1718,7 +1799,6 @@ async function SimulateIronCondor(simulation) {
   if (inRangeData.length === 0)
     return { message: "No hay datos en el rango especificado." };
 
-  // Calcular RSI
   const rsiData = calculateRSI2(data, rsiPeriod);
   const rsiMap = Object.fromEntries(rsiData.map((d) => [d.DATE, d.RSI]));
 
@@ -1747,24 +1827,60 @@ async function SimulateIronCondor(simulation) {
         : inRangeData.length - 1;
     const expiryPrice = inRangeData[expiryIndex].CLOSE;
 
-    let tradeResult, outcome;
+    let tradeResult,
+      outcome,
+      reasoningExtra = "";
     if (expiryPrice > shortPut && expiryPrice < shortCall) {
       tradeResult = maxProfit;
       outcome = "WIN";
       wins++;
+      reasoningExtra = "Precio dentro del rango establecido.";
     } else {
       tradeResult = -maxLoss;
       outcome = "LOSS";
       losses++;
+      reasoningExtra =
+        expiryPrice < shortPut
+          ? "Rompió soporte inferior."
+          : "Rompió resistencia superior.";
     }
 
     totalProfit += tradeResult;
+
+    // SEÑALES ADICIONALES: RSI extremo y volumen extra alto
+    if (rsiVal > 80) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "sell",
+        PRICE: price,
+        REASONING: `RSI extremadamente alto (${rsiVal}), posible sobrecompra.`,
+        SHARES: 0,
+      });
+    }
+    if (rsiVal < 20) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "buy",
+        PRICE: price,
+        REASONING: `RSI extremadamente bajo (${rsiVal}), posible sobreventa.`,
+        SHARES: 0,
+      });
+    }
+    if (day.VOLUME > volThreshold * 2) {
+      trades.push({
+        DATE: day.DATE,
+        TYPE: "buy",
+        PRICE: price,
+        REASONING: `Volumen inusualmente alto, posible inicio de tendencia fuerte.`,
+        SHARES: 0,
+      });
+    }
 
     trades.push({
       DATE: day.DATE,
       TYPE: "IronCondor",
       PRICE: price,
-      REASONING: `Expiry: ${expiryPrice}, Result: ${outcome}`,
+      REASONING: `Expiry: ${expiryPrice}, Result: ${outcome}. ${reasoningExtra}`,
       SHARES: 0,
     });
   }
@@ -1773,7 +1889,7 @@ async function SimulateIronCondor(simulation) {
   const PERCENTAGE_RETURN =
     ((FINAL_BALANCE - Number(AMOUNT)) / Number(AMOUNT)) * 100;
 
-  const simulacion = {
+  return {
     SIMULATIONID,
     USERID,
     STRATEGYID,
@@ -1783,7 +1899,6 @@ async function SimulateIronCondor(simulation) {
     ENDDATE,
     AMOUNT,
     SPECS,
-    INDICATORS: SPECS,
     SIGNALS: trades,
     SUMMARY: {
       TOTAL_BOUGHT_UNITS: 0,
@@ -1795,38 +1910,7 @@ async function SimulateIronCondor(simulation) {
       REAL_PROFIT: totalProfit,
       PERCENTAGE_RETURN: PERCENTAGE_RETURN,
     },
-    CHART_DATA: inRangeData.map((d) => ({
-      DATE: d.DATE,
-      OPEN: d.CLOSE,
-      HIGH: d.HIGH,
-      LOW: d.LOW,
-      CLOSE: d.CLOSE,
-      VOLUME: d.VOLUME,
-      INDICATORS: [{ INDICATOR: "RSI", VALUE: rsiMap[d.DATE] ?? 0 }],
-    })),
-    DETAIL_ROW: {
-      ACTIVED: true,
-      DELETED: false,
-      DETAIL_ROW_REG: [
-        {
-          CURRENT: true,
-          REGDATE: new Date(),
-          REGTIME: new Date().toTimeString().slice(0, 8),
-          REGUSER: USERID,
-        },
-      ],
-    },
   };
-
-  try {
-    const nuevaSimulacion = new SimulationModel(simulacion);
-    await nuevaSimulacion.save();
-    console.log("Simulación Iron Condor guardada correctamente.");
-    return simulacion;
-  } catch (error) {
-    console.error("Error al guardar en MongoDB:", error.message);
-    return { status: 500, message: error.message };
-  }
 }
 
 /*-----------------------------------------------------------------------------------------------------------
@@ -1889,7 +1973,7 @@ async function getSimulationById(simulationId) {
 async function deleteSimulations(simulationIds) {
   try {
     const result = await SimulationModel.deleteMany({
-      SIMULATIONID: { $in: simulationIds }
+      SIMULATIONID: { $in: simulationIds },
     });
     return result.deletedCount === simulationIds.length;
   } catch (error) {
@@ -1905,5 +1989,5 @@ module.exports = {
   SimulateIronCondor,
   getAllSimulations,
   getSimulationById,
-  deleteSimulations
+  deleteSimulations,
 };

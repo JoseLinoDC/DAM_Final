@@ -5,7 +5,6 @@ const {
   reversionSimple,
   SimulateMACrossover,
   SimulateIronCondor,
-
   getAllSimulations,
   getSimulationById,
   deleteSimulations
